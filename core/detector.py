@@ -24,10 +24,11 @@ class Detector:
     """End-to-end deepfake inference for images and videos."""
 
     def __init__(self, cfg: Config, bundle: ModelBundle | None = None,
-                 lock: threading.Lock | None = None):
+                 lock: threading.Lock | None = None,
+                 device_override: str | None = None):
         self.cfg = cfg
-        self.device = get_device(cfg.models.device)
-        self.bundle = bundle or self._load_bundle(cfg)
+        self.device = get_device(device_override or cfg.models.device)
+        self.bundle = bundle or self._load_bundle(cfg, device_override)
         self.bundle.eval_all()
         self.pre = FacePreprocessor(cfg)
         self.ensemble = Ensemble(cfg)
@@ -40,15 +41,23 @@ class Detector:
 
     # ------------------------------------------------------------ lifecycle
     @staticmethod
-    def _load_bundle(cfg: Config) -> ModelBundle:
+    def _load_bundle(cfg: Config, device_override: str | None = None) -> ModelBundle:
+        from concurrent.futures import ThreadPoolExecutor
         from .models import cnn_efficientnet, cnn_xception, lstm_temporal, vit_vision
 
-        device = get_device(cfg.models.device)
-        cnn = cnn_xception.load_cnn(cfg, device=device)
-        effnet = cnn_efficientnet.load_effnet(cfg, device=device)
-        vit = vit_vision.load_vit(cfg, device=device)
-        lstm = lstm_temporal.load_temporal(cfg, device=device)
-        return ModelBundle(cnn=cnn, effnet=effnet, vit=vit, lstm=lstm, device=device)
+        device = get_device(device_override or cfg.models.device)
+        jobs = {
+            "cnn": lambda: cnn_xception.load_cnn(cfg, device=device),
+            "effnet": lambda: cnn_efficientnet.load_effnet(cfg, device=device),
+            "vit": lambda: vit_vision.load_vit(cfg, device=device),
+            "lstm": lambda: lstm_temporal.load_temporal(cfg, device=device),
+        }
+        with ThreadPoolExecutor(max_workers=4) as pool:
+            results = {name: pool.submit(fn) for name, fn in jobs.items()}
+            loaded = {name: fut.result() for name, fut in results.items()}
+        return ModelBundle(cnn=loaded["cnn"], effnet=loaded["effnet"],
+                           vit=loaded["vit"], lstm=loaded["lstm"],
+                           device=device)
 
     # ------------------------------------------------------------- helpers
     def _to_clip_tensor(self, faces: list[np.ndarray]) -> torch.Tensor:

@@ -63,7 +63,7 @@ def load_cnn(cfg: Config, device=None):
         )
 
     model = XceptionNet(num_classes=1)
-    raw = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    raw = torch.load(ckpt_path, map_location="cpu", weights_only=False, mmap=True)
     if isinstance(raw, dict) and "model_state_dict" in raw:
         sd = raw["model_state_dict"]
     else:

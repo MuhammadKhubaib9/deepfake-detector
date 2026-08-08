@@ -55,6 +55,15 @@ _detector: Detector | None = None
 _detector_error: str | None = None
 _loading = False
 _load_stage: str | None = None
+_custom_device: str | None = None  # runtime override: "cpu" | "cuda" | None (config)
+
+
+def _resolved_device() -> str:
+    """Effective device: runtime override first, then config 'auto'."""
+    if _custom_device:
+        return _custom_device
+    from core.models import get_device
+    return str(get_device(CFG.models.device))
 
 
 # =============================================================== model load
@@ -70,7 +79,7 @@ def start_loading():
         global _detector, _detector_error, _loading, _load_stage
         try:
             _load_stage = "Loading model weights (first load can take a few minutes)…"
-            _detector = Detector(CFG)
+            _detector = Detector(CFG, device_override=_custom_device)
             _load_stage = "Ready"
         except Exception as exc:  # noqa: BLE001 - surfaced via /api/status
             _detector_error = f"{type(exc).__name__}: {exc}"
@@ -145,24 +154,30 @@ def _payload_too_large(_e):
                   "File too large. Maximum: 100 MB for videos.", 413)
 
 
+def _index_response():
+    res = send_from_directory(FRONTEND_DIST, "index.html")
+    res.headers["Cache-Control"] = "no-cache, must-revalidate"
+    return res
+
+
 @app.route("/")
 def home():
     if UI_INDEX.is_file():
-        return send_from_directory(FRONTEND_DIST, "index.html")
+        return _index_response()
     return _ui_not_built()
 
 
 @app.route("/metrics")
 def metrics_page():
     if UI_INDEX.is_file():
-        return send_from_directory(FRONTEND_DIST, "index.html")
+        return _index_response()
     return _ui_not_built()
 
 
 @app.route("/history")
 def history_page():
     if UI_INDEX.is_file():
-        return send_from_directory(FRONTEND_DIST, "index.html")
+        return _index_response()
     return _ui_not_built()
 
 
@@ -204,7 +219,8 @@ def api_status():
         "loading": _loading,
         "loading_stage": _load_stage,
         "error": _detector_error,
-        "device": str(_detector.device) if _detector else None,
+        "device": str(_detector.device) if _detector else _resolved_device(),
+        "requested_device": _resolved_device(),
         "models_loaded": models,
     })
 
@@ -387,6 +403,49 @@ def api_history_delete(scan_id):
 def api_history_clear():
     deleted = history.clear_all()
     return jsonify({"ok": True, "deleted": deleted})
+
+
+@app.route("/api/device", methods=["POST"])
+def api_device_switch():
+    """Switch inference device (cpu | cuda | auto) and reload the models."""
+    global _custom_device, _detector, _detector_error, _loading, _load_stage
+
+    payload = request.get_json(silent=True) or {}
+    device = str(payload.get("device", "")).lower()
+    if device not in ("cpu", "cuda", "auto"):
+        return _error("BAD_DEVICE", "device must be 'cpu', 'cuda' or 'auto'.", 400)
+
+    if _detector is not None and str(_detector.device) == _resolved_device() and \
+            device == (_custom_device or "auto"):
+        return jsonify({"ok": True, "device": str(_detector.device),
+                        "reload": False})
+
+    if device == "auto":
+        _custom_device = None
+    else:
+        _custom_device = device
+
+    if _detector is None and _loading:
+        return jsonify({"ok": True, "device": _resolved_device(),
+                        "reload": True, "loading": True})
+
+    _detector, _detector_error, _loading = None, None, True
+    _load_stage = f"Switching to {_resolved_device()}…"
+
+    def _load():
+        global _detector, _detector_error, _loading, _load_stage
+        try:
+            _load_stage = f"Loading model weights on {_resolved_device()}…"
+            _detector = Detector(CFG, device_override=_custom_device)
+            _load_stage = "Ready"
+        except Exception as exc:  # noqa: BLE001
+            _detector_error = f"{type(exc).__name__}: {exc}"
+        finally:
+            _loading = False
+
+    threading.Thread(target=_load, daemon=True).start()
+    return jsonify({"ok": True, "device": _resolved_device(),
+                    "reload": True, "loading": True})
 
 
 # ================================================================ bootstrap

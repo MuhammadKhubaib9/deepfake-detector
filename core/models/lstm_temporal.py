@@ -66,7 +66,7 @@ def load_temporal(cfg: Config, device=None):
     model = TemporalNet(hidden_size=int(mcfg.hidden_size),
                         num_layers=int(mcfg.num_layers),
                         dropout=float(mcfg.dropout))
-    raw = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    raw = torch.load(ckpt_path, map_location="cpu", weights_only=False, mmap=True)
     sd = raw["model_state_dict"] if "model_state_dict" in raw else raw
     missing, unexpected = model.load_state_dict(sd, strict=False)
     if missing:

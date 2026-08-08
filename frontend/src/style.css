@@ -175,6 +175,18 @@ nav { display: flex; gap: 4px; flex-wrap: wrap; }
 }
 .sc-title { font-weight: 700; color: var(--text); letter-spacing: .4px; }
 .sc-status { margin-left: auto; text-align: right; }
+.device-switch {
+  display: inline-flex; gap: 3px; background: var(--panel-2);
+  border: 1px solid var(--border-strong); border-radius: 999px; padding: 3px;
+}
+.dev-btn {
+  border: none; background: transparent; color: var(--muted);
+  font-size: 11px; font-weight: 700; letter-spacing: .5px;
+  padding: 4px 10px; border-radius: 999px; cursor: pointer; transition: .15s;
+}
+.dev-btn:hover:not(:disabled) { color: var(--text); }
+.dev-btn.active { background: var(--accent); color: #fff; }
+.dev-btn:disabled { opacity: .45; cursor: not-allowed; }
 
 .dropzone {
   border: 2px dashed var(--border-strong); border-radius: var(--radius);

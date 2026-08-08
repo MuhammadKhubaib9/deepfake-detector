@@ -67,7 +67,7 @@ def t_video_detect():
         assert r["scores"].get(key) is not None, f"missing {key} score"
     assert (ART / r["heatmap_path"]).is_file()
     assert (ART / r["face_crop_path"]).is_file()
-    assert 0 < r["faces_analyzed"] <= 24
+    assert 0 < r["faces_analyzed"] <= int(CFG.preprocessing.max_frames)
     assert r["most_manipulated_frame"] >= 1
     assert r["analyzed_seconds"] > 0
 

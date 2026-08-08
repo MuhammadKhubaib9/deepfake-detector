@@ -23,6 +23,7 @@ export default function Scanner() {
   const [scanning, setScanning] = useState(false);
   const [loader, setLoader] = useState(null);
   const [ready, setReady] = useState(false);
+  const [device, setDevice] = useState(null);
   const [confidence, setConfidence] = useState(null);
   const [previewUrl, setPreviewUrl] = useState("");
   const [, setRenderTick] = useState(0);
@@ -41,6 +42,7 @@ export default function Scanner() {
         .then(r => r.json())
         .then(s => {
           if (!alive) return;
+          setDevice(s.requested_device || s.device);
           if (s.ready) { setReady(true); setError(prev => prev === "LOADING" ? "" : prev); }
           else if (s.error) setError("Model load failed: " + s.error);
           else {
@@ -99,6 +101,29 @@ export default function Scanner() {
   function showError(msg) {
     setError(msg);
     setScanState("Failed");
+  }
+
+  const [switching, setSwitching] = useState(false);
+
+  async function switchDevice(target) {
+    if (switching) return;
+    setSwitching(true);
+    setError("");
+    try {
+      const res = await fetch("/api/device", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ device: target })
+      });
+      const d = await res.json();
+      if (!res.ok) throw d;
+      setDevice(target === "auto" ? (d.device) : target);
+      setScanState("Switching device — reloading models…");
+    } catch (err) {
+      setError((err && err.error && err.error.message) || "Device switch failed.");
+    } finally {
+      setSwitching(false);
+    }
   }
 
   async function detect() {
@@ -190,6 +215,14 @@ export default function Scanner() {
       <div className="scanner-head">
         <span className="pulse-dot"></span>
         <span className="sc-title">DeepFake Scan</span>
+        <span className="device-switch" title="Switch inference device">
+          <button type="button" className={"dev-btn" + (device === "cpu" ? " active" : "")}
+            disabled={scanning || switching}
+            onClick={() => switchDevice("cpu")}>CPU</button>
+          <button type="button" className={"dev-btn" + (device === "cuda" ? " active" : "")}
+            disabled={scanning || switching}
+            onClick={() => switchDevice("cuda")}>GPU</button>
+        </span>
         <span className="sc-status" style={scanState === "Scanning…" ? { color: "var(--accent)" } : undefined}>{scanState}</span>
       </div>
 

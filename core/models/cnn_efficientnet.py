@@ -59,7 +59,7 @@ def load_effnet(cfg: Config, device=None):
         )
 
     model = EfficientNetNet(num_classes=1)
-    raw = torch.load(ckpt_path, map_location="cpu", weights_only=False)
+    raw = torch.load(ckpt_path, map_location="cpu", weights_only=False, mmap=True)
     sd = raw["model_state_dict"] if isinstance(raw, dict) and "model_state_dict" in raw else raw
 
     # ckpt keys are prefixed with the wrapper's `backbone.` submodule name,
