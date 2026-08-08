@@ -1,0 +1,65 @@
+# =============================================================================
+# DeepFake Detection System - Configuration
+# Maps to FR/NFR identifiers from the SRS (see README traceability table).
+# =============================================================================
+
+server:
+  host: 127.0.0.1
+  port: 5000
+  debug: false                    # NFR-07: fully-local inference; no external calls
+
+uploads:
+  upload_dir: uploads             # Tier-3 temporary storage
+  session_expiry_seconds: 3600    # FR-20: temp files auto-deleted after 1 hour
+  max_image_size_mb: 10           # FR-04
+  max_video_size_mb: 100          # FR-04
+  allowed_image_types: [image/jpeg, image/png]       # FR-01
+  allowed_video_types: [video/mp4, video/x-msvideo]  # FR-02
+  max_video_duration_seconds: 60  # FR-02: first 60 s analysed in v1.0
+
+models:
+  device: auto                    # auto | cpu | cuda
+
+  cnn:
+    name: XceptionNet             # FR-11: XceptionNet CNN backbone
+    type: xception                # timm 'legacy_xception' (FF++ C23 fine-tuned)
+    checkpoint: ./models/xception_weights.pt
+    backbone_prefix: "backbone."  # prefix inside the released checkpoint
+
+  vit:                            # FR-12: Vision Transformer B/16
+    name: "ViT-B/16"
+    backend: ffpp                 # 'ffpp' (own FF++ checkpoint, see below) | 'transformers'
+    hf_weights: Khubaib7/deepfake-models   # transformers backend source (optional)
+    ffpp_checkpoint: ./models/vit_ffpp_weights.pth   # downloaded to the user's repo
+    labels: [Real, Fake]          # id2label of the HF checkpoint used
+
+  lstm:                           # FR-13: ResNet-18 + 2-layer BiLSTM
+    name: "ResNet18-BiLSTM"
+    type: resnet_bilstm
+    checkpoint: ./models/cnn_lstm_weights.pth
+    hidden_size: 256
+    num_layers: 2
+    dropout: 0.3
+    sequence_frames: 24           # TBD-03 resolved: 24-frame clip, as trained
+
+ensemble:                         # FR-14: weighted soft voting (normalised internally)
+  image_weights:                  # UC-03 image detection (CNN + ViT; LSTM not used)
+    cnn: 1.0
+    vit: 1.0
+  video_weights:                  # UC-04 video detection (CNN + ViT + LSTM)
+    cnn: 1.0
+    vit: 1.0
+    lstm: 1.0
+  threshold: 0.5                  # verdict: FAKE if P_fake >= threshold else REAL
+
+preprocessing:
+  video_fps: 5                    # FR-05: configurable frame extraction rate
+  max_frames: 24                  # uniform sample of frames for analysis
+  target_size: 224                # FR-09: model input resolution
+  face_margin: 0.30               # crop pad around MTCNN box (models trained @ 30%)
+  mtcnn_confidence: 0.95          # MTCNN conf threshold (Section 5.4.1)
+  imagenet_mean: [0.485, 0.456, 0.406]             # FR-10
+  imagenet_std: [0.229, 0.224, 0.225]              # FR-10
+
+metrics:
+  output_dir: metrics

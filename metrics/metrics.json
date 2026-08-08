@@ -1,0 +1,123 @@
+{
+  "generated_at": "2026-08-07T15:44:02.642630+00:00",
+  "srs_targets": {
+    "accuracy": 0.75,
+    "roc_auc": 0.85,
+    "f1": 0.8
+  },
+  "note": "Metrics computed on the released FF++ C23 test split (per-model checkpoints from Hugging Face).",
+  "models": {
+    "cnn": {
+      "model_name": "XceptionNet",
+      "dataset": "FaceForensics++ (C23)",
+      "metrics": {
+        "accuracy": 0.9743589743589743,
+        "precision": 0.9822695035460993,
+        "recall": 0.9857651245551602,
+        "f1": 0.9840142095914742,
+        "roc_auc": 0.9943568886629385
+      },
+      "confusion_matrix": [
+        [
+          65,
+          5
+        ],
+        [
+          4,
+          277
+        ]
+      ],
+      "chart_confusion": "confusion_cnn.png",
+      "chart_roc": "roc_cnn.png",
+      "targets_met": {
+        "accuracy": true,
+        "roc_auc": true,
+        "f1": true
+      }
+    },
+    "vit": {
+      "model_name": "ViT-B/16 (FF++)",
+      "dataset": "FaceForensics++ (C23)",
+      "metrics": {
+        "accuracy": 0.6695156695156695,
+        "precision": 0.8909952606635071,
+        "recall": 0.6690391459074733,
+        "f1": 0.7642276422764228,
+        "roc_auc": 0.7065836298932384
+      },
+      "confusion_matrix": [
+        [
+          47,
+          23
+        ],
+        [
+          93,
+          188
+        ]
+      ],
+      "chart_confusion": "confusion_vit.png",
+      "chart_roc": "roc_vit.png",
+      "targets_met": {
+        "accuracy": false,
+        "roc_auc": false,
+        "f1": false
+      }
+    },
+    "lstm": {
+      "model_name": "ResNet18-BiLSTM",
+      "dataset": "FaceForensics++ (C23)",
+      "metrics": {
+        "accuracy": 0.9743589743589743,
+        "precision": 0.9822695035460993,
+        "recall": 0.9857651245551602,
+        "f1": 0.9840142095914742,
+        "roc_auc": 0.9804524656837824
+      },
+      "confusion_matrix": [
+        [
+          65,
+          5
+        ],
+        [
+          4,
+          277
+        ]
+      ],
+      "chart_confusion": "confusion_lstm.png",
+      "chart_roc": "roc_lstm.png",
+      "targets_met": {
+        "accuracy": true,
+        "roc_auc": true,
+        "f1": true
+      }
+    },
+    "ensemble": {
+      "model_name": "Ensemble (CNN+ViT+LSTM)",
+      "dataset": "FaceForensics++ (C23)",
+      "metrics": {
+        "accuracy": 0.9743589743589743,
+        "precision": 0.9822695035460993,
+        "recall": 0.9857651245551602,
+        "f1": 0.9840142095914742,
+        "roc_auc": 0.9919166243009658
+      },
+      "confusion_matrix": [
+        [
+          65,
+          5
+        ],
+        [
+          4,
+          277
+        ]
+      ],
+      "chart_confusion": "confusion_ensemble.png",
+      "chart_roc": "roc_ensemble.png",
+      "targets_met": {
+        "accuracy": true,
+        "roc_auc": true,
+        "f1": true
+      }
+    }
+  }
+}
