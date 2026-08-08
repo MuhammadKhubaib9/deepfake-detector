@@ -1,0 +1,178 @@
+# DeepFake Detection System
+
+A web application that detects deepfake **images** and **videos** using an
+ensemble of three deep-learning models:
+
+- **XceptionNet** (CNN) – analyses facial texture/artifacts
+- **ViT-B/16** (Vision Transformer) – second opinion on the same face
+- **ResNet18-BiLSTM** (temporal) – analyzes motion over a clip of frames (videos only)
+
+Results come with a per-model probability score, a combined verdict
+(REAL / FAKE), a confidence %, and a **Grad-CAM heatmap** that shows *which
+part of the face* influenced the decision.
+
+---
+
+## 1. What you need
+
+- **Python 3.10 or newer (64-bit)** – download from https://www.python.org
+- **Internet access once** – the first run downloads the pre-trained model
+  weights (~1.4 GB total).
+- ~10 GB of **free disk space** to store the model weights and dependencies.
+
+Recommended: **8 GB+ RAM** (CPU inference). A NVIDIA GPU is optional
+(`cuda`), but not required.
+
+Supported uploads:
+
+| Type    | Formats        | Max size | Notes                          |
+|---------|----------------|----------|--------------------------------|
+| Image   | JPEG, PNG      | 10 MB    | Must contain a visible face    |
+| Video   | MP4, AVI       | 100 MB   | Only the first 60 s are analysed|
+
+---
+
+## 2. Step-by-step setup (new machine)
+
+### Step 2.1 – Get the code
+
+Open a terminal in the folder where you want the project, then:
+
+```
+git clone <your-repo-url> deepfake-detector
+cd deepfake-detector
+```
+
+### Step 2.2 — Create the virtual environment
+
+**Windows (PowerShell / Command Prompt):**
+
+```
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+**macOS / Linux:**
+
+```
+python -m venv .venv
+source .venv/bin/activate
+```
+
+You should now see `(.venv)` at the start of your prompt.
+
+### Step 2.3 — Install the dependencies
+
+```
+pip install --upgrade pip
+pip install -r requirements.txt
+```
+
+This installs PyTorch, OpenCV, Transformers, Flask and the other ~20
+libraries the app needs. This can take **5–10 minutes**.
+
+### Step 2.4 — Download the model weights
+
+```
+python scripts/download_models.py
+```
+
+Downloads the XceptionNet, ViT (FF++) and CNN+BiLSTM checkpoints into
+`models/`. The weights are hosted in the project's own Hugging Face
+repository (`Khubaib7/deepfake-models`). Files that already exist are
+skipped, so you can re-run it safely.
+
+---
+
+## 3. Run the app
+
+```
+python app.py
+```
+
+Wait for the line saying the server started, then open:
+
+**http://127.0.0.1:5000** in your browser.
+
+Notes:
+- The three models load **in the background**; the page will simply wait
+  until they are ready. First start loads ~1.6 GB, allow a minute or two.
+- Model loading status can be checked at **http://127.0.0.1:5000/api/status**.
+
+### How to use the scanner
+
+1. Drag & drop a photo or video onto the drop zone (or click to browse).
+2. Click **Detect**.
+3. The result shows:
+   - The verdict badge: **REAL** or **FAKE**
+   - The **probability** of manipulation and the **confidence** %
+   - Per-model scores (CNN, ViT, and – for video – the LSTM)
+   - A **Grad-CAM heatmap** highlighting manipulated regions
+   - The extracted face crop used for analysis
+
+### Developer metrics dashboard
+
+Open **http://127.0.0.1:5000/metrics** to see accuracy / precision / recall /
+F1 / ROC-AUC for each model and the combined ensemble, with confusion-matrix
+and ROC-curve charts.
+
+---
+
+## 4. Running the tests
+
+```
+python tests\test_validator.py      # upload validation (file rules)
+python tests\smoke_test.py          # full end-to-end image + video pipeline
+```
+
+The smoke test uses the sample files in `tests/fixtures/` and writes its
+output to `tests/_smoke_artifacts/`.
+
+---
+
+## 5. Common tasks
+
+| Task                    | Command                                   |
+|-------------------------|-------------------------------------------|
+| Start the web app       | `python app.py`                           |
+| Download model weights | `python scripts/download_models.py`       |
+| Rebuild metrics charts  | `python scripts/generate_metrics.py`      |
+| Run unit tests          | `python tests/test_validator.py`          |
+| Run smoke test          | `python tests/smoke_test.py`              |
+
+Re-run `generate_metrics.py` whenever you change the ensemble weights in
+`config.yaml` — the dashboard and live inference always use the same weights.
+
+---
+
+## 6. Configuration
+
+Everything is tunable in **`config.yaml`** without touching code:
+
+| Section          | What it controls                                   |
+|------------------|---------------------------------------------------|
+| `server`         | Host / port / debug mode                           |
+| `uploads`        | Accepted formats, size limits, session expiry      |
+| `models`         | Device (`auto`/`cpu`/`cuda`), checkpoints, ViT backend |
+| `ensemble`       | Model weights for images & videos, the FAKE threshold |
+| `preprocessing`  | Frame rate, maximum frames, face margin, MTCNN confidence |
+| `metrics`        | Output folder for charts and metrics JSON          |
+
+---
+
+## 7. Troubleshooting
+
+| Problem                                   | Fix                                                                  |
+|-------------------------------------------|----------------------------------------------------------------------|
+| `HF_TOKEN warning` at startup             | Harmless. The ViT model is public and downloads without a token.     |
+| ViT is slow on first scan                 | First run downloads ~330 MB to `~/.cache/huggingface/hub/`.          |
+| "No face detected" error                  | MTCNN requires a clearly visible face (confidence gate 0.95). Try a sharper, front-facing photo. |
+| `CNN checkpoint missing / LSTM checkpoint missing` | Run `python scripts/download_models.py`.                        |
+| 413 / "File too large"                    | Respect the limits (image 10 MB, video 100 MB) or raise them in `config.yaml` and restart. |
+| Slow on CPU                               | Set `models.device: cpu` explicitly, or set to `cuda` if you have a GPU. |
+
+---
+
+For developers: see [README_DEVELOPER.md](README_DEVELOPER.md) for a
+file-by-file technical breakdown of the codebase."# deepfake-detector" 
+"# deepfake-detector" 

@@ -1,0 +1,31 @@
+# DeepFake Detection System - Python dependencies
+# Core deep learning
+torch>=2.0.0
+torchvision>=0.15.0
+transformers>=4.40.0
+timm>=0.9.0
+safetensors>=0.4.0
+
+# Face detection (MTCNN) - facenet-pytorch
+facenet-pytorch>=2.5.0
+
+# Explainability (pytorch-grad-cam was renamed on PyPI to `grad-cam`; import module stays `pytorch_grad_cam`)
+grad-cam>=1.5.5
+
+# Computer vision & media processing
+opencv-python>=4.8.0
+numpy>=1.24.0
+Pillow>=10.0.0
+imageio-ffmpeg>=0.4.9
+
+# Web framework (Tier 1 - UI layer)
+Flask>=2.3.0
+
+# Metrics, plotting & config
+scikit-learn>=1.2.0
+matplotlib>=3.5.0
+seaborn>=0.13.0
+PyYAML>=6.0
+
+# Hugging Face hub (model weight download)
+huggingface_hub>=0.23.0

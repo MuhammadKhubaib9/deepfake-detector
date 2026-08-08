@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Metrics Dashboard &mdash; DeepFake Detection System</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body class="dash-body">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo">📊</span>
+      <div>
+        <h1>Developer Metrics Dashboard</h1>
+        <p class="tagline">UC-07 &middot; Confusion matrix, ROC curves &amp; FR-18/FR-19 model metrics</p>
+      </div>
+    </div>
+    <nav><a href="/" class="btn ghost">← Back to Detector</a></nav>
+  </header>
+
+  <main class="container">
+    <div id="metrics-error" class="alert error hidden"></div>
+
+    <div id="model-tabs" class="tabs"></div>
+
+    <section id="stat-grid" class="stat-grid"></section>
+
+    <div class="chart-row">
+      <figure id="cm-figure" class="chart hidden">
+        <img id="cm-img" alt="Confusion matrix" />
+        <figcaption>Confusion matrix heatmap</figcaption>
+      </figure>
+      <figure id="roc-figure" class="chart hidden">
+        <img id="roc-img" alt="ROC curve" />
+        <figcaption>ROC curve</figcaption>
+      </figure>
+    </div>
+
+    <p class="dash-note" id="dash-note"></p>
+  </main>
+
+  <footer class="footer"><small>Maps to FR-18/FR-19 &amp; UC-07 (View Metrics Dashboard)</small></footer>
+
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html>
