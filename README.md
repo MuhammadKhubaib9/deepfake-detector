@@ -39,7 +39,6 @@ Supported uploads:
 Open a terminal in the folder where you want the project, then:
 
 ```
-git clone <your-repo-url> deepfake-detector
 cd deepfake-detector
 ```
 
