@@ -54,7 +54,7 @@ class Detector:
     def _to_clip_tensor(self, faces: list[np.ndarray]) -> torch.Tensor:
         """[T, 3, 224, 224] tensor from a list of aligned face crops."""
         batch = np.stack([self.pre.face_to_tensor(f) for f in faces], axis=0)
-        return torch.from_numpy(batch)
+        return torch.from_numpy(batch).to(self.device)
 
     @staticmethod
     def _persist_png(rgb: np.ndarray, path: Path) -> Path:

@@ -26,6 +26,7 @@ from flask import (Flask, jsonify, request, send_file, send_from_directory)
 
 from core.config import load_config, resolve
 from core.detector import Detector
+from core import history
 from core.preprocessing import NoFaceError
 from core.validator import FileValidator, ValidationError
 
@@ -45,12 +46,15 @@ METRICS_DIR = resolve(CFG.metrics.output_dir)
 
 validator = FileValidator(CFG)
 
+history.init_history()
+
 sessions: dict[str, dict] = {}
 sessions_lock = threading.RLock()
 
 _detector: Detector | None = None
 _detector_error: str | None = None
 _loading = False
+_load_stage: str | None = None
 
 
 # =============================================================== model load
@@ -63,9 +67,11 @@ def start_loading():
     _loading = True
 
     def _load():
-        global _detector, _detector_error, _loading
+        global _detector, _detector_error, _loading, _load_stage
         try:
+            _load_stage = "Loading model weights (first load can take a few minutes)…"
             _detector = Detector(CFG)
+            _load_stage = "Ready"
         except Exception as exc:  # noqa: BLE001 - surfaced via /api/status
             _detector_error = f"{type(exc).__name__}: {exc}"
         finally:
@@ -153,6 +159,13 @@ def metrics_page():
     return _ui_not_built()
 
 
+@app.route("/history")
+def history_page():
+    if UI_INDEX.is_file():
+        return send_from_directory(FRONTEND_DIST, "index.html")
+    return _ui_not_built()
+
+
 def _ui_not_built():
     return ("React UI not built. Run: cd frontend && npm install && npm run build",
             503)
@@ -189,6 +202,7 @@ def api_status():
     return jsonify({
         "ready": _detector is not None,
         "loading": _loading,
+        "loading_stage": _load_stage,
         "error": _detector_error,
         "device": str(_detector.device) if _detector else None,
         "models_loaded": models,
@@ -280,6 +294,9 @@ def api_detect():
     with sessions_lock:
         sessions[sid]["result"] = result
 
+    scan_id = history.add_scan(result)
+    result["history_id"] = scan_id
+
     return jsonify({"ok": True, "result": result})
 
 
@@ -332,6 +349,44 @@ def api_metrics():
         row["confusion_url"] = f"/metrics-chart/{row['chart_confusion']}"
         row["roc_url"] = f"/metrics-chart/{row['chart_roc']}"
     return jsonify(doc)
+
+
+@app.route("/api/history")
+def api_history_list():
+    """List saved detections (newest first), optionally filtered."""
+    limit = max(1, min(int(request.args.get("limit", 50)), 200))
+    offset = max(0, int(request.args.get("offset", 0)))
+    kind = request.args.get("kind") or None
+    verdict = request.args.get("verdict") or None
+    rows = history.list_scans(limit=limit, offset=offset,
+                              kind=kind, verdict=verdict)
+    return jsonify({
+        "items": rows,
+        "total": history.count_scans(),
+        "limit": limit,
+        "offset": offset,
+    })
+
+
+@app.route("/api/history/<int:scan_id>")
+def api_history_detail(scan_id):
+    row = history.get_scan(scan_id)
+    if row is None:
+        return _error("NOT_FOUND", "Scan not found.", 404)
+    return jsonify(row)
+
+
+@app.route("/api/history/<int:scan_id>", methods=["DELETE"])
+def api_history_delete(scan_id):
+    if not history.delete_scan(scan_id):
+        return _error("NOT_FOUND", "Scan not found.", 404)
+    return jsonify({"ok": True, "deleted": scan_id})
+
+
+@app.route("/api/history", methods=["DELETE"])
+def api_history_clear():
+    deleted = history.clear_all()
+    return jsonify({"ok": True, "deleted": deleted})
 
 
 # ================================================================ bootstrap

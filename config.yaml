@@ -62,7 +62,7 @@ ensemble:                         # FR-14: weighted soft voting (normalised inte
 
 preprocessing:
   video_fps: 5                    # FR-05: configurable frame extraction rate
-  max_frames: 24                  # uniform sample of frames for analysis
+  max_frames: 40                  # uniform sample of frames for analysis
   target_size: 224                # FR-09: model input resolution
   face_margin: 0.30               # crop pad around MTCNN box (models trained @ 30%)
   mtcnn_confidence: 0.95          # MTCNN conf threshold (Section 5.4.1)

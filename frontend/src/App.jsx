@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import Scanner from "./components/Scanner";
 import Metrics from "./pages/Metrics";
+import History from "./pages/History";
 import "./style.css";
 
 /* ------------------------------------------------------------------ */
@@ -108,6 +109,7 @@ function Landing() {
           <a href="#how" className="nav-link">How it works</a>
           <a href="#features" className="nav-link">Features</a>
           <a href="#faq" className="nav-link">FAQs</a>
+          <a href="/history" className="nav-link">History</a>
           <a href="#about" className="nav-link">About</a>
         </nav>
         <button className="btn primary nav-cta" onClick={scrollToAnalyze}>Analyze now</button>
@@ -280,8 +282,10 @@ function Landing() {
         </section>
       </main>
 
-      <footer className="footer">
+<footer className="footer">
         <small>FYP — Tehzeeb Ul Hassan (IAC-FA22-BCS-009) &amp; Muhammad Khubaib Khalid (IAC-FA22-BCS-007)</small>
+        <span className="footer-sep">·</span>
+        <a href="/history" className="dev-link">History →</a>
         <span className="footer-sep">·</span>
         <a href="/metrics" className="dev-link">Developer Metrics Dashboard →</a>
       </footer>
@@ -298,5 +302,5 @@ export default function App() {
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, []);
-  return path === "/metrics" ? <Metrics /> : <Landing />;
+  return path === "/metrics" ? <Metrics /> : path === "/history" ? <History /> : <Landing />;
 }

@@ -41,9 +41,12 @@ export default function Scanner() {
         .then(r => r.json())
         .then(s => {
           if (!alive) return;
-          if (s.ready) setReady(true);
+          if (s.ready) { setReady(true); setError(prev => prev === "LOADING" ? "" : prev); }
           else if (s.error) setError("Model load failed: " + s.error);
-          else setTimeout(poll, 2000);
+          else {
+            setScanState(s.loading_stage ? "Loading: " + s.loading_stage : "Waiting for a file");
+            setTimeout(poll, 2000);
+          }
         })
         .catch(() => setTimeout(poll, 3000));
     })();
