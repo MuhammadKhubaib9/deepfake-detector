@@ -12,7 +12,7 @@ Specification):
 
 | Tier | Concern | Location |
 |------|---------|----------|
-| Tier 1 | Web / UI layer (Flask) | `app.py`, `templates/`, `static/` |
+| Tier 1 | Web / UI layer (Flask + React) | `app.py`, `frontend/` (built to `frontend/dist/`) |
 | Tier 2 | AI engine (core package) | `core/` |
 | Tier 3 | Model weights + temporary storage | `models/`, `uploads/` |
 
@@ -122,15 +122,16 @@ Images use `cnn + efficientnet + vit`; videos add the LSTM.
 | `tests/test_validator.py` | Table-driven unit tests for upload rules (FR-01..FR-04): accepts JPEG/PNG/MP4/AVI, rejects GIF, magic-byte/extension mismatch, oversized files, empty file, and the exact size boundary. |
 | `tests/smoke_test.py` | End-to-end smoke test: validates fixtures, runs the full image pipeline (UC-03) and video pipeline (UC-04) through a real `Detector`, asserts on result shape, per-model scores, and artifact PNGs being written. |
 
-### `templates/` & `static/`
+### `frontend/` (React UI)
 
 | File | Purpose |
 |------|---------|
-| `templates/index.html` | Single-page scanner UI. Embeds `window.CONFIG` (max image/video MB, expiry hours) injected by `app.py`. |
-| `templates/metrics.html` | Developer dashboard shell (UC-07). Renders tabs + chart images populated by dashboard.js. |
-| `static/css/style.css` | All styling (scanner page + dashboard, responsive layout, animations). |
-| `static/js/app.js` | Scanner logic: readiness polling (`/api/status`), drag & drop, client-side size/type checks, upload → detect → result rendering, Grad-CAM/face/source tabs, animated verdict UI. |
-| `static/js/dashboard.js` | Fetches `/api/metrics`, builds per-model tabs, renders stat cards (with SRS-target pass/fail), loads confusion-matrix & ROC images. |
+| `frontend/src/App.jsx` | Landing page + lightweight router (`/` vs `/metrics`), originally ported from the old `templates/index.html` + `static/js/app.js` (since removed). |
+| `frontend/src/components/Scanner.jsx` | Scanner in React state/hooks: readiness polling (`/api/status`), drag & drop, client-side size/type checks, upload → detect → result rendering, Grad-CAM/face/source tabs, animated verdict. |
+| `frontend/src/pages/Metrics.jsx` | Dashboard in React (UC-07): fetches `/api/metrics`, per-model tabs, stat cards with SRS-target pass/fail, confusion-matrix & ROC images. |
+| `frontend/src/style.css` | The single stylesheet (was `static/css/style.css`, now lives in the frontend). |
+| `frontend/vite.config.js` | Builds to `frontend/dist/`; dev server on `:5173` proxying `/api` + `/media` → Flask `:5000`. |
+| `frontend/dist/` | Compiled React app (index.html + hashed assets), **served by Flask** when present (`/` and `/metrics`); a 503 hints to run `npm run build` otherwise. |
 
 ---
 
@@ -138,8 +139,10 @@ Images use `cnn + efficientnet + vit`; videos add the LSTM.
 
 | Method | Route | Description |
 |--------|-------|-------------|
-| GET | `/` | Scanner UI (index.html). |
-| GET | `/metrics` | Developer dashboard (metrics.html). |
+| GET | `/` | Scanner UI — serves `frontend/dist/index.html` (React). 503 if the frontend wasn't built. |
+| GET | `/metrics` | Developer dashboard (React, same bundle). |
+| GET | `/assets/<file>` | Compiled React JS/CSS bundles. |
+| GET | `/api/config` | Upload limits for the client → `{maxImageMb, maxVideoMb, expiryHours}`. |
 | GET | `/api/status` | Readiness probe → `{ready, loading, error, device, models_loaded}`. |
 | POST | `/api/upload` | Multipart `file` → validates + stores, returns `session_id`, `media` metadata, `media_url`, `expires_in`. 413/422/503 on failures. |
 | POST | `/api/detect` | JSON `{session_id}` → runs pipeline → returns `{ok, result}` where `result` = verdict, p_fake, confidence, threshold, per-model scores (cnn/effnet/vit/lstm), `heatmap_url`, `face_url`, `media_url`, video meta. |

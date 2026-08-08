@@ -18,8 +18,9 @@ part of the face* influenced the decision.
 ## 1. What you need
 
 - **Python 3.10 or newer (64-bit)** – download from https://www.python.org
-- **Internet access once** – the first run downloads the pre-trained model
-  weights (~1.4 GB total).
+- **Node.js 18+** (optional) – only needed if you rebuild the React UI
+- **Internet access once** – to install dependencies and fetch the pre-trained
+  model weights (~1.6 GB total). Inference itself is fully offline (NFR-07).
 - ~10 GB of **free disk space** to store the model weights and dependencies.
 
 Recommended: **8 GB+ RAM** (CPU inference). A NVIDIA GPU is optional
@@ -83,11 +84,17 @@ Downloads the XceptionNet, EfficientNet-B3 and CNN+BiLSTM checkpoints into
 repository (`Khubaib7/deepfake-models`). Files that already exist are
 skipped, so you can re-run it safely.
 
-
+> The ViT model lives in the project at `models/ViT/` (self-hosted copy of
+> `dima806/deepfake_vs_real_image_detection`, 99.3% accuracy) and loads
+> locally — no downloads or Hugging Face credentials required.
 
 ---
 
 ## 3. Run the app
+
+The UI is a **React** single-page app (built once with Vite into
+`frontend/dist/`) served by the Flask backend — so running stays a single
+command:
 
 ```
 python app.py
@@ -98,9 +105,21 @@ Wait for the line saying the server started, then open:
 **http://127.0.0.1:5000** in your browser.
 
 Notes:
-- The three models load **in the background**; the page will simply wait
+- The four models load **in the background**; the page will simply wait
   until they are ready. First start loads ~1.6 GB, allow a minute or two.
 - Model loading status can be checked at **http://127.0.0.1:5000/api/status**.
+
+### Building / developing the React UI (optional)
+
+The pre-built UI already lives in `frontend/dist/`, so you don't need Node to
+run the app. Only build the frontend after you change the React source:
+
+```
+cd frontend
+npm install        # first time only
+npm run build      # writes frontend/dist (served by Flask on next start)
+npm run dev        # dev server on :5173, proxies /api to Flask :5000
+```
 
 ### How to use the scanner
 
@@ -109,7 +128,7 @@ Notes:
 3. The result shows:
    - The verdict badge: **REAL** or **FAKE**
    - The **probability** of manipulation and the **confidence** %
-   - Per-model scores (CNN, ViT, and – for video – the LSTM)
+   - Per-model scores (CNN, EfficientNet, ViT, and – for video – the LSTM)
    - A **Grad-CAM heatmap** highlighting manipulated regions
    - The extracted face crop used for analysis
 

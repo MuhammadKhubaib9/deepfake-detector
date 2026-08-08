@@ -22,7 +22,7 @@ import time
 import uuid
 from pathlib import Path
 
-from flask import Flask, jsonify, render_template, request, send_file
+from flask import (Flask, jsonify, request, send_file, send_from_directory)
 
 from core.config import load_config, resolve
 from core.detector import Detector
@@ -34,6 +34,10 @@ CFG = load_config()
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = int(CFG.uploads.max_video_size_mb) * 1024 * 1024
 APP_SESSION_EXPIRY = int(CFG.uploads.session_expiry_seconds)
+
+# React UI (frontend/dist). The API works without it; the web UI requires it.
+FRONTEND_DIST = resolve("frontend") / "dist"
+UI_INDEX = FRONTEND_DIST / "index.html"
 
 UPLOAD_ROOT = resolve(CFG.uploads.upload_dir)
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
@@ -137,15 +141,41 @@ def _payload_too_large(_e):
 
 @app.route("/")
 def home():
-    return render_template("index.html",
-                           max_image_mb=CFG.uploads.max_image_size_mb,
-                           max_video_mb=CFG.uploads.max_video_size_mb,
-                           expiry_hours=APP_SESSION_EXPIRY // 3600)
+    if UI_INDEX.is_file():
+        return send_from_directory(FRONTEND_DIST, "index.html")
+    return _ui_not_built()
 
 
 @app.route("/metrics")
 def metrics_page():
-    return render_template("metrics.html")
+    if UI_INDEX.is_file():
+        return send_from_directory(FRONTEND_DIST, "index.html")
+    return _ui_not_built()
+
+
+def _ui_not_built():
+    return ("React UI not built. Run: cd frontend && npm install && npm run build",
+            503)
+
+
+@app.route("/assets/<path:filename>")
+def dist_assets(filename):
+    """Serve compiled React assets (JS/CSS bundles) from frontend/dist."""
+    base = FRONTEND_DIST / "assets"
+    target = (base / filename).resolve()
+    if not str(target).startswith(str(base.resolve())) or not target.is_file():
+        return _error("NOT_FOUND", "Not found.", 404)
+    return send_file(target)
+
+
+@app.route("/api/config")
+def api_config():
+    """Client-side upload limits used by the React UI."""
+    return jsonify({
+        "maxImageMb": int(CFG.uploads.max_image_size_mb),
+        "maxVideoMb": int(CFG.uploads.max_video_size_mb),
+        "expiryHours": APP_SESSION_EXPIRY // 3600,
+    })
 
 
 @app.route("/api/status")
