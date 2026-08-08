@@ -52,7 +52,8 @@ def t_image_detect():
     assert r["kind"] == "image"
     assert r["verdict"] in ("REAL", "FAKE")
     assert 0.0 <= r["p_fake"] <= 1.0
-    assert r["scores"]["cnn"] is not None and r["scores"]["vit"] is not None
+    for key in ("cnn", "efficientnet", "vit"):
+        assert r["scores"].get(key) is not None, f"missing {key} score"
     assert (ART / r["heatmap_path"]).is_file()
     assert (ART / r["face_crop_path"]).is_file()
     assert r["faces_analyzed"] == 1
@@ -62,8 +63,8 @@ def t_video_detect():
     r = D.detect_video(VIDEO, ART, original_name=VIDEO.name)
     assert r["kind"] == "video"
     assert r["verdict"] in ("REAL", "FAKE")
-    for key in ("cnn", "vit", "lstm"):
-        assert r["scores"][key] is not None, f"missing {key} score"
+    for key in ("cnn", "efficientnet", "vit", "lstm"):
+        assert r["scores"].get(key) is not None, f"missing {key} score"
     assert (ART / r["heatmap_path"]).is_file()
     assert (ART / r["face_crop_path"]).is_file()
     assert 0 < r["faces_analyzed"] <= 24
@@ -75,8 +76,8 @@ if __name__ == "__main__":
     ART.mkdir(parents=True, exist_ok=True)
     check("FR-01/FR-02 upload-validation accepted fixtures", t_image_uploads)
     check("FR-01/FR-02 upload-validation accepted video", t_video_uploads)
-    check("UC-03 image pipeline (CNN+ViT+Grad-CAM project)", t_image_detect)
-    check("UC-04 video pipeline (CNN+ViT+LSTM)", t_video_detect)
+    check("UC-03 image pipeline (CNN+EffNet+ViT+Grad-CAM)", t_image_detect)
+    check("UC-04 video pipeline (CNN+EffNet+ViT+LSTM)", t_video_detect)
 
     print(f"\nsmoke: {sum(checks)}/{len(checks)} checks passed")
     sys.exit(0 if all(checks) else 1)
