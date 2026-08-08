@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-08-07T15:44:02.642630+00:00",
+  "generated_at": "2026-08-08T09:19:58.078554+00:00",
   "srs_targets": {
     "accuracy": 0.75,
     "roc_auc": 0.85,
@@ -35,32 +35,32 @@
         "f1": true
       }
     },
-    "vit": {
-      "model_name": "ViT-B/16 (FF++)",
+    "efficientnet": {
+      "model_name": "EfficientNet-B3",
       "dataset": "FaceForensics++ (C23)",
       "metrics": {
-        "accuracy": 0.6695156695156695,
-        "precision": 0.8909952606635071,
-        "recall": 0.6690391459074733,
-        "f1": 0.7642276422764228,
-        "roc_auc": 0.7065836298932384
+        "accuracy": 0.9829059829059829,
+        "precision": 0.9824561403508771,
+        "recall": 0.99644128113879,
+        "f1": 0.9893992932862191,
+        "roc_auc": 0.9975597356380274
       },
       "confusion_matrix": [
         [
-          47,
-          23
+          65,
+          5
         ],
         [
-          93,
-          188
+          1,
+          280
         ]
       ],
-      "chart_confusion": "confusion_vit.png",
-      "chart_roc": "roc_vit.png",
+      "chart_confusion": "confusion_efficientnet.png",
+      "chart_roc": "roc_efficientnet.png",
       "targets_met": {
-        "accuracy": false,
-        "roc_auc": false,
-        "f1": false
+        "accuracy": true,
+        "roc_auc": true,
+        "f1": true
       }
     },
     "lstm": {
@@ -92,14 +92,14 @@
       }
     },
     "ensemble": {
-      "model_name": "Ensemble (CNN+ViT+LSTM)",
+      "model_name": "Ensemble (CNN+EffNet+LSTM)",
       "dataset": "FaceForensics++ (C23)",
       "metrics": {
-        "accuracy": 0.9743589743589743,
-        "precision": 0.9822695035460993,
-        "recall": 0.9857651245551602,
-        "f1": 0.9840142095914742,
-        "roc_auc": 0.9919166243009658
+        "accuracy": 0.98005698005698,
+        "precision": 0.9823943661971831,
+        "recall": 0.9928825622775801,
+        "f1": 0.9876106194690265,
+        "roc_auc": 0.9987290289781392
       },
       "confusion_matrix": [
         [
@@ -107,8 +107,8 @@
           5
         ],
         [
-          4,
-          277
+          2,
+          279
         ]
       ],
       "chart_confusion": "confusion_ensemble.png",

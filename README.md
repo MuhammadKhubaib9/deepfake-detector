@@ -1,10 +1,12 @@
 # DeepFake Detection System
 
 A web application that detects deepfake **images** and **videos** using an
-ensemble of three deep-learning models:
+ensemble of four deep-learning models:
 
 - **XceptionNet** (CNN) – analyses facial texture/artifacts
-- **ViT-B/16** (Vision Transformer) – second opinion on the same face
+- **EfficientNet-B3** (CNN) – second spatial backbone, the strongest single
+  model in the FF++ C23 study
+- **ViT-B/16** (Vision Transformer) – per-frame transformer opinion
 - **ResNet18-BiLSTM** (temporal) – analyzes motion over a clip of frames (videos only)
 
 Results come with a per-model probability score, a combined verdict
@@ -76,10 +78,12 @@ libraries the app needs. This can take **5–10 minutes**.
 python scripts/download_models.py
 ```
 
-Downloads the XceptionNet, ViT (FF++) and CNN+BiLSTM checkpoints into
+Downloads the XceptionNet, EfficientNet-B3 and CNN+BiLSTM checkpoints into
 `models/`. The weights are hosted in the project's own Hugging Face
 repository (`Khubaib7/deepfake-models`). Files that already exist are
 skipped, so you can re-run it safely.
+
+
 
 ---
 

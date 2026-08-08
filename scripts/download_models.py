@@ -1,11 +1,12 @@
-"""Download released model weights from Hugging Face (user's own repository).
+"""Download model weights from the project's own Hugging Face repository.
 
-Source:  https://huggingface.co/Khubaib7/deepfake-models
-         (flat files: xception_weights.pt, vit_ffpp_weights.pth, cnn_lstm_weights.pth)
-
-The three checkpoints (XceptionNet, ViT-B/16 FF++, CNN+BiLSTM) live in this
-account's flat repo. The evaluation JSONs for the metrics dashboard are
-produced by `scripts/generate_metrics.py` and are not downloaded here.
+Sources:
+  * Khubaib7/deepfake-models  (flat files):
+      - xception_weights.pt        FF++ C23 XceptionNet
+      - cnn_lstm_weights.pth       FF++ C23 ResNet18-BiLSTM
+      - efficientnet_weights.pt    FF++ C23 EfficientNet-B3
+  * ViT-B/16 lives locally in models/ViT/ (self-hosted copy of
+      dima806/deepfake_vs_real_image_detection) - nothing to download.
 
 Run:  python scripts/download_models.py
 """
@@ -22,9 +23,9 @@ ROOT = Path(__file__).resolve().parent.parent
 REPO = "Khubaib7/deepfake-models"
 
 FILES = {
-    "xception_weights.pt":  "models/xception_weights.pt",
-    "vit_ffpp_weights.pth": "models/vit_ffpp_weights.pth",
-    "cnn_lstm_weights.pth": "models/cnn_lstm_weights.pth",
+    "xception_weights.pt":      "models/xception_weights.pt",
+    "cnn_lstm_weights.pth":     "models/cnn_lstm_weights.pth",
+    "efficientnet_weights.pt":  "models/efficientnet_weights.pt",
 }
 
 
@@ -54,6 +55,8 @@ def main() -> int:
         print(f"[download] {REPO}/{src}")
         _download(src, dst_path)
         print(f"[done]    {dst}")
+    print("ViT (dima806/deepfake_vs_real_image_detection) downloads "
+          "automatically on first detection run.")
     return 0
 
 

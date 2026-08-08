@@ -26,7 +26,7 @@ from core.config import load_config  # noqa: E402
 MODELS = [
     ("cnn", "XceptionNet", "metrics/xception_test_predictions.json",
      "FaceForensics++ (C23)"),
-    ("vit", "ViT-B/16 (FF++)", "metrics/vit_test_predictions.json",
+    ("efficientnet", "EfficientNet-B3", "metrics/efficientnet_test_predictions.json",
      "FaceForensics++ (C23)"),
     ("lstm", "ResNet18-BiLSTM", "metrics/cnn_lstm_test_predictions.json",
      "FaceForensics++ (C23)"),
@@ -80,24 +80,28 @@ def main():
             "targets_met": _check_targets(ev),
         }
 
-    # ---- weighted ensemble row (soft voting, same 24-frame clip protocol)
-    if all(k in arrays for k in ens_weights):
+    # ---- weighted ensemble row (soft voting over models with predictions)
+    # NOTE: the runtime ViT (dima806, transformers) has no released FF++ C23
+    # test predictions, so the offline ensemble excludes it and only averages
+    # the FF++ checkpoints: Xception + EfficientNet + LSTM.
+    available = {k: w for k, w in ens_weights.items() if k in arrays}
+    if available:
         (y_true0, _) = arrays["cnn"]
         n = len(y_true0)
-        ok = all(len(arrays[k][0]) == n for k in ens_weights)
+        ok = all(len(arrays[k][0]) == n for k in available)
         if ok:
-            total_w = sum(ens_weights.values())
-            ens_scores = (sum(arrays[k][1] * w for k, w in ens_weights.items())
+            total_w = sum(available.values())
+            ens_scores = (sum(arrays[k][1] * w for k, w in available.items())
                           / total_w)
             ev = mt.evaluate(y_true0, ens_scores)
             cm = np.array(ev["confusion_matrix"])
             mt.plot_confusion_matrix(cm, ["Real", "Fake"],
-                                     "Ensemble (CNN+ViT+LSTM) - Confusion Matrix",
+                                     "Ensemble (CNN+EffNet+LSTM) - Confusion Matrix",
                                      out_dir / "confusion_ensemble.png")
             mt.plot_roc_curve(y_true0, ens_scores, "Ensemble",
                               out_dir / "roc_ensemble.png")
             rows["ensemble"] = {
-                "model_name": "Ensemble (CNN+ViT+LSTM)",
+                "model_name": "Ensemble (CNN+EffNet+LSTM)",
                 "dataset": "FaceForensics++ (C23)",
                 "metrics": {k: ev[k] for k in
                             ("accuracy", "precision", "recall", "f1", "roc_auc")},

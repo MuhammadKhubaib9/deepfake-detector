@@ -35,8 +35,9 @@ core/detector.py  Detector (thread-locked, one inference at a time)
   │
   ├─ IMAGE path (UC-03):
   │    preprocessing.detect_face()  MTCNN ─► aligned 224×224 crop  FR-06..10
-  │    models.cnn_xception  → sigmoid P(Fake)
-  │    models.vit_vision    → softmax P(Fake)
+  │    models.cnn_xception      → sigmoid P(Fake)
+  │    models.cnn_efficientnet  → sigmoid P(Fake)
+  │    models.vit_vision        → softmax P(Fake)
   │    gradcam.compute_gradcam_heatmap() → heatmap.png (FR-17)
   │    ensemble.combine(scores, kind="image") → verdict     FR-14..16
   │
@@ -44,9 +45,10 @@ core/detector.py  Detector (thread-locked, one inference at a time)
        preprocessing.extract_video_frames()  ffmpeg 5 fps, first 60 s,
                                               subsample ≤ 24 frames  FR-05
        for each frame: MTCNN face crop (skips no-face frames)
-       models.cnn_xception  → per-frame P(Fake), mean
-       models.vit_vision    → per-frame P(Fake), mean
-       models.lstm_temporal → P(Fake) across the whole clip  FR-13
+       models.cnn_xception      → per-frame P(Fake), mean
+       models.cnn_efficientnet  → per-frame P(Fake), mean
+       models.vit_vision        → per-frame P(Fake), mean
+       models.lstm_temporal     → P(Fake) across the whole clip  FR-13
        gradcam on the most-manipulated frame
        ensemble.combine(scores, kind="video")                FR-14..16
   │
@@ -59,13 +61,13 @@ app.py returns DETECTION_RESULT JSON to the browser
 Weighted soft-voting (weights from `config.yaml`):
 
 ```
-P_fake = (w_cnn·P_cnn + w_vit·P_vit + w_lstm·P_lstm) / Σw
+P_fake = (w_cnn·P_cnn + w_eff·P_eff + w_vit·P_vit + w_lstm·P_lstm) / Σw
 verdict = FAKE if P_fake >= threshold (default 0.5) else REAL
 confidence = P_fake·100         if FAKE
              (1 − P_fake)·100   if REAL
 ```
 
-Images use `cnn + vit` only; videos add the LSTM.
+Images use `cnn + efficientnet + vit`; videos add the LSTM.
 
 ---
 
@@ -100,16 +102,17 @@ Images use `cnn + vit` only; videos add the LSTM.
 
 | File | Purpose |
 |------|---------|
-| `core/models/__init__.py` | `get_device()` ('auto' → CUDA if available else CPU), `load_model()` dispatcher, and the `ModelBundle` container (holds .cnn/.vit/.lstm + device; `.eval_all()`). |
+| `core/models/__init__.py` | `get_device()` ('auto' → CUDA if available else CPU), `load_model()` dispatcher, and the `ModelBundle` container (holds .cnn/.effnet/.vit/.lstm + device; `.eval_all()`). |
 | `core/models/cnn_xception.py` | `XceptionNet(nn.Module)` wrapping `timm`'s `legacy_xception` backbone with a single logit output. The backbone stays as a named submodule so `grad_cam_target_layer` (= `backbone.conv4`) can be hooked. `load_cnn()` loads the FF++ C23 checkpoint from `models/xception_weights.pt`. |
-| `core/models/vit_vision.py` | Dual backend (selected by `models.vit.backend` in config): `FfppViT` (default) loads the local FF++ checkpoint (`models/vit_ffpp_weights.pth`, from `Khubaib7/deepfake-models`) — P(Fake) = sigmoid; `HuggingFaceViT` wraps `AutoModelForImageClassification` — P(Fake) = softmax[class 1]. Both expose a uniform `predict_proba()`. |
+| `core/models/cnn_efficientnet.py` | `EfficientNetNet(nn.Module)` wrapping `timm`'s `efficientnet_b3` under `.backbone` (FF++ C23 checkpoint with `backbone.`-prefixed keys). The strongest single model in the FF++ study (accuracy 0.9829, AUC 0.9976). |
+| `core/models/vit_vision.py` | `HuggingFaceViT` wrapping `AutoModelForImageClassification`. Loads from the local folder `models/vit.checkpoint` (default `./models/ViT`, a self-hosted copy of `dima806/deepfake_vs_real_image_detection`, 99.3% acc); if that folder is absent it falls back to `models.vit.hf_weights` (a HF repo id). P(Fake) = softmax[class 1]. |
 | `core/models/lstm_temporal.py` | `TemporalNet` — ResNet-18 feature extractor (fc removed, 512-dim) feeding a 2-layer **bidirectional** LSTM (hidden 256) + MLP head returning one scalar logit for a clip `[T,3,224,224]`. `load_temporal()` loads `models/cnn_lstm_weights.pth`; `clip_logit_to_proba()` maps to P(Fake). |
 
 ### `scripts/`
 
 | File | Purpose |
 |------|---------|
-| `scripts/download_models.py` | Downloads the three FF++ C23 checkpoints from the user's own Hugging Face repo `Khubaib7/deepfake-models` (flat files: `xception_weights.pt`, `vit_ffpp_weights.pth`, `cnn_lstm_weights.pth`) into the flat `models/` layout. Idempotent (skips existing files). |
+| `scripts/download_models.py` | Downloads the three FF++ C23 checkpoints from the user's own Hugging Face repo `Khubaib7/deepfake-models` (flat files: `xception_weights.pt`, `cnn_lstm_weights.pth`, `efficientnet_weights.pt`) into the flat `models/` layout. Idempotent (skips existing files). The ViT downloads on first detection run. |
 | `scripts/generate_metrics.py` | Reads per-model test predictions, computes the metric set per model **and** the weighted ensemble (weights pulled live from `config.yaml.ensemble.video_weights` so dashboard == inference), regenerates `metrics/metrics.json` plus confusion-matrix and ROC PNGs. |
 
 ### `tests/`
@@ -139,7 +142,7 @@ Images use `cnn + vit` only; videos add the LSTM.
 | GET | `/metrics` | Developer dashboard (metrics.html). |
 | GET | `/api/status` | Readiness probe → `{ready, loading, error, device, models_loaded}`. |
 | POST | `/api/upload` | Multipart `file` → validates + stores, returns `session_id`, `media` metadata, `media_url`, `expires_in`. 413/422/503 on failures. |
-| POST | `/api/detect` | JSON `{session_id}` → runs pipeline → returns `{ok, result}` where `result` = verdict, p_fake, confidence, threshold, per-model scores, `heatmap_url`, `face_url`, `media_url`, video meta. |
+| POST | `/api/detect` | JSON `{session_id}` → runs pipeline → returns `{ok, result}` where `result` = verdict, p_fake, confidence, threshold, per-model scores (cnn/effnet/vit/lstm), `heatmap_url`, `face_url`, `media_url`, video meta. |
 | GET | `/media/<sid>/<file>` | Serves session-scoped artifacts with **path-traversal protection** (`resolve()` + prefix check). |
 | GET | `/metrics-chart/<name>` | Serves PNG charts from `metrics/`. |
 | GET | `/api/metrics` | JSON metrics document (`metrics/metrics.json`), enriched with `confusion_url`/`roc_url`. 404 if you haven’t run `generate_metrics.py`. |
@@ -175,8 +178,8 @@ Images use `cnn + vit` only; videos add the LSTM.
 | `uploads` | `max_video_duration_seconds` | 60 | FR-02 |
 | `uploads` | `session_expiry_seconds` | 3600 | FR-20 sweep |
 | `models` | `device` | `auto` | `auto`/`cpu`/`cuda` |
-| `models.vit` | `backend` | `transformers` | `transformers` (HF) or `ffpp` (local checkpoint) |
-| `ensemble` | `image_weights` / `video_weights` | all 1.0 | Soft-vote weights |
+| `models.vit` | `checkpoint` / `hf_repo` + `hf_subfolder` | `./models/ViT` | Local folder with the model files (primary, no network); if absent, falls back to `hf_repo` (e.g. `Khubaib7/deepfake-models`) + `hf_subfolder` (`ViT`) on the owner's account |
+| `ensemble` | `image_weights` / `video_weights` | all 1.0 | Soft-vote weights (cnn/effnet/vit [/lstm]) |
 | `ensemble` | `threshold` | 0.5 | FAKE cutoff |
 | `preprocessing` | `video_fps` / `max_frames` | 5 / 24 | frame extraction |
 | `preprocessing` | `face_margin` / `mtcnn_confidence` | 0.30 / 0.95 | crop pad / conf gate |
@@ -193,5 +196,7 @@ Images use `cnn + vit` only; videos add the LSTM.
 
 SRS quality targets used by the dashboard (NFR-03/04/05): accuracy ≥ 0.75,
 ROC-AUC ≥ 0.85, F1 ≥ 0.80. Current FF++ C23 numbers (from `metrics.json`):
-CNN 97.4% / AUC 0.994, ViT 66.9% / 0.707, LSTM 97.4% / 0.980,
-ensemble 97.4% / 0.992.
+Xception 97.4% / AUC 0.994, EfficientNet-B3 98.3% / 0.998, LSTM 97.4% / 0.980,
+ensemble 98.0% / 0.999. (The runtime ViT — dima806, 99.3% acc — has no
+released FF++ C23 test predictions, so it is excluded from the offline
+dashboard numbers but still contributes at inference time.)

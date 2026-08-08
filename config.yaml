@@ -20,17 +20,23 @@ uploads:
 models:
   device: auto                    # auto | cpu | cuda
 
-  cnn:
-    name: XceptionNet             # FR-11: XceptionNet CNN backbone
+  cnn:                            # FR-11: XceptionNet CNN backbone
+    name: XceptionNet             # FR-11 canonical CNN backbone
     type: xception                # timm 'legacy_xception' (FF++ C23 fine-tuned)
     checkpoint: ./models/xception_weights.pt
     backbone_prefix: "backbone."  # prefix inside the released checkpoint
 
-  vit:                            # FR-12: Vision Transformer B/16
+  efficientnet:                   # EfficientNet-B3 (2nd spatial CNN, FR-11)
+    name: "EfficientNet-B3"
+    type: efficientnet_b3         # timm 'efficientnet_b3' (FF++ C23 fine-tuned)
+    checkpoint: ./models/efficientnet_weights.pt
+    backbone_prefix: "backbone."  # prefix inside the released checkpoint
+
+  vit:                            # FR-12: Vision Transformer (transformers backend)
     name: "ViT-B/16"
-    backend: ffpp                 # 'ffpp' (own FF++ checkpoint, see below) | 'transformers'
-    hf_weights: Khubaib7/deepfake-models   # transformers backend source (optional)
-    ffpp_checkpoint: ./models/vit_ffpp_weights.pth   # downloaded to the user's repo
+    checkpoint: ./models/ViT  # self-hosted copy, primary source (no network)
+    hf_repo: Khubaib7/deepfake-models  # fallback: your account if the local folder is absent
+    hf_subfolder: ViT                   # ViT files live in the 'ViT/' subfolder of that repo
     labels: [Real, Fake]          # id2label of the HF checkpoint used
 
   lstm:                           # FR-13: ResNet-18 + 2-layer BiLSTM
@@ -43,11 +49,13 @@ models:
     sequence_frames: 24           # TBD-03 resolved: 24-frame clip, as trained
 
 ensemble:                         # FR-14: weighted soft voting (normalised internally)
-  image_weights:                  # UC-03 image detection (CNN + ViT; LSTM not used)
+  image_weights:                  # UC-03 image detection (CNN + EffNet + ViT)
     cnn: 1.0
+    efficientnet: 1.0
     vit: 1.0
-  video_weights:                  # UC-04 video detection (CNN + ViT + LSTM)
+  video_weights:                  # UC-04 video detection (CNN + EffNet + ViT + LSTM)
     cnn: 1.0
+    efficientnet: 1.0
     vit: 1.0
     lstm: 1.0
   threshold: 0.5                  # verdict: FAKE if P_fake >= threshold else REAL

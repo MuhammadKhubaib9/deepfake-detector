@@ -41,13 +41,14 @@ class Detector:
     # ------------------------------------------------------------ lifecycle
     @staticmethod
     def _load_bundle(cfg: Config) -> ModelBundle:
-        from .models import cnn_xception, lstm_temporal, vit_vision
+        from .models import cnn_efficientnet, cnn_xception, lstm_temporal, vit_vision
 
         device = get_device(cfg.models.device)
         cnn = cnn_xception.load_cnn(cfg, device=device)
+        effnet = cnn_efficientnet.load_effnet(cfg, device=device)
         vit = vit_vision.load_vit(cfg, device=device)
         lstm = lstm_temporal.load_temporal(cfg, device=device)
-        return ModelBundle(cnn=cnn, vit=vit, lstm=lstm, device=device)
+        return ModelBundle(cnn=cnn, effnet=effnet, vit=vit, lstm=lstm, device=device)
 
     # ------------------------------------------------------------- helpers
     def _to_clip_tensor(self, faces: list[np.ndarray]) -> torch.Tensor:
@@ -82,13 +83,16 @@ class Detector:
 
             with torch.no_grad(), torch.inference_mode():
                 p_cnn = torch.sigmoid(self.bundle.cnn(clip)).item()
+                p_effnet = torch.sigmoid(self.bundle.effnet(clip)).item()
                 p_vit = float(self.bundle.vit.predict_proba(clip).item())
 
             saliency = compute_gradcam_heatmap(self.bundle.cnn, clip, self.device)
             heat_p = save_heatmap_overlay(saliency, face, artifacts / "heatmap.png")
             crop_p = self._persist_png(face, artifacts / "face_crop.png")
 
-            result = self.ensemble.combine({"cnn": p_cnn, "vit": p_vit}, kind="image")
+            result = self.ensemble.combine(
+                {"cnn": p_cnn, "efficientnet": p_effnet, "vit": p_vit},
+                kind="image")
             return self._finalize(result, kind="image", artifacts=artifacts,
                                   original_name=original_name,
                                   heatmap_path=heat_p.name,
@@ -132,6 +136,9 @@ class Detector:
                 cnn_logits = self.bundle.cnn(clip)              # [T,1]
                 p_cnn_frames = torch.sigmoid(cnn_logits).cpu().numpy().reshape(-1)
                 p_cnn = float(p_cnn_frames.mean())
+                eff_logits = self.bundle.effnet(clip)           # [T,1]
+                p_eff_frames = torch.sigmoid(eff_logits).cpu().numpy().reshape(-1)
+                p_effnet = float(p_eff_frames.mean())
                 p_lstm = float(torch.sigmoid(self.bundle.lstm(clip)).item())
                 p_vit = float(self.bundle.vit.predict_proba(clip).mean().item())
 
@@ -145,7 +152,9 @@ class Detector:
             crop_p = self._persist_png(faces[0], artifacts / "face_crop.png")
 
             result = self.ensemble.combine(
-                {"cnn": p_cnn, "vit": p_vit, "lstm": p_lstm}, kind="video"
+                {"cnn": p_cnn, "efficientnet": p_effnet, "vit": p_vit,
+                 "lstm": p_lstm},
+                kind="video"
             )
             return self._finalize(
                 result, kind="video", artifacts=artifacts,
@@ -167,6 +176,7 @@ class Detector:
             "threshold": result["threshold"],
             "scores": result["scores"],
             "cnn_score": result["scores"].get("cnn"),
+            "effnet_score": result["scores"].get("efficientnet"),
             "vit_score": result["scores"].get("vit"),
             "lstm_score": result["scores"].get("lstm") if kind == "video" else None,
             "heatmap_path": heatmap_path,
