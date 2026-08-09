@@ -1,13 +1,17 @@
 # DeepFake Detection System
 
 A web application that detects deepfake **images** and **videos** using an
-ensemble of four deep-learning models:
+ensemble of six deep-learning models:
 
 - **XceptionNet** (CNN) – analyses facial texture/artifacts
 - **EfficientNet-B3** (CNN) – second spatial backbone, the strongest single
   model in the FF++ C23 study
 - **ViT-B/16** (Vision Transformer) – per-frame transformer opinion
 - **ResNet18-BiLSTM** (temporal) – analyzes motion over a clip of frames (videos only)
+- **CommunityForensics-ViT** (CVPR 2025) – trained on 2.7M samples from 4,803
+  generators; detects unseen forgery methods
+- **LNCLIP-DF** (WACV 2026) – CLIP ViT-L/14 with LN-tuning, generalizes
+  cross-dataset (FF++ -> Celeb-DF-v2 / DFDC)
 
 Results come with a per-model probability score, a combined verdict
 (REAL / FAKE), a confidence %, and a **Grad-CAM heatmap** that shows *which
@@ -79,14 +83,27 @@ libraries the app needs. This can take **5–10 minutes**.
 python scripts/download_models.py
 ```
 
-Downloads the XceptionNet, EfficientNet-B3 and CNN+BiLSTM checkpoints into
-`models/`. The weights are hosted in the project's own Hugging Face
-repository (`Khubaib7/deepfake-models`). Files that already exist are
-skipped, so you can re-run it safely.
+Downloads every checkpoint into `models/` (the CNN weights, plus the three
+transformer model folders). Everything is hosted in the project's own
+Hugging Face repository (`Khubaib7/deepfake-models`); files that already
+exist locally are skipped, so you can re-run it safely.
 
-> The ViT model lives in the project at `models/ViT/` (self-hosted copy of
-> `dima806/deepfake_vs_real_image_detection`, 99.3% accuracy) and loads
-> locally — no downloads or Hugging Face credentials required.
+Repo layout used by the script (mirror these folders to
+`huggingface.co/Khubaib7/deepfake-models`):
+
+```
+deepfake-models/
+├── xception_weights.pt          -> models/xception_weights.pt
+├── cnn_lstm_weights.pth         -> models/cnn_lstm_weights.pth
+├── efficientnet_weights.pt      -> models/efficientnet_weights.pt
+├── ViT/                         -> models/ViT/                    (ViT-B/16)
+├── community_forensics/         -> models/community_forensics/    (CVPR 2025)
+└── lnclip/model.torchscript     -> models/lnclip/model.torchscript (WACV 2026)
+```
+
+> At inference time nothing touches the network (NFR-07): each loader uses
+> its local `models/` copy, falling back to `Khubaib7/deepfake-models` on
+> the Hub only when the local folder is missing.
 
 ---
 
@@ -105,7 +122,7 @@ Wait for the line saying the server started, then open:
 **http://127.0.0.1:5000** in your browser.
 
 Notes:
-- The four models load **in the background**; the page will simply wait
+- The six models load **in the background**; the page will simply wait
   until they are ready. First start loads ~1.6 GB, allow a minute or two.
 - Model loading status can be checked at **http://127.0.0.1:5000/api/status**.
 
@@ -128,7 +145,10 @@ npm run dev        # dev server on :5173, proxies /api to Flask :5000
 3. The result shows:
    - The verdict badge: **REAL** or **FAKE**
    - The **probability** of manipulation and the **confidence** %
-   - Per-model scores (CNN, EfficientNet, ViT, and – for video – the LSTM)
+   - Per-model scores (XceptionNet, EfficientNet-B3, CommunityForensics,
+     LNCLIP, and – for video – the BiLSTM; the ViT-B/16 votes on images
+     only — it false-positives on real video frames, so it is excluded
+     from video votes)
    - A **Grad-CAM heatmap** highlighting manipulated regions
    - The extracted face crop used for analysis
 

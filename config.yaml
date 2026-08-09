@@ -48,16 +48,36 @@ models:
     dropout: 0.3
     sequence_frames: 24           # TBD-03 resolved: 24-frame clip, as trained
 
+  community:                      # CommunityForensics ViT-Small (CVPR 2025)
+    name: "CommunityForensics-ViT"
+    type: vit_small_384           # 2.7M samples / 4,803 generators, sigmoid logit
+    checkpoint: ./models/community_forensics   # local clone (transformers format)
+    hf_repo: Khubaib7/deepfake-models  # fallback: your account if local is absent
+    hf_subfolder: community_forensics
+
+  lnclip:                         # LNCLIP-DF: CLIP ViT-L/14, LN-tuned (WACV 2026)
+    name: "LNCLIP-CLIP-ViTL14"
+    type: torchscript
+    checkpoint: ./models/lnclip/model.torchscript
+    hf_repo: Khubaib7/deepfake-models  # fallback: your account if local is absent
+    hf_subfolder: lnclip
+    file: model.torchscript
+
 ensemble:                         # FR-14: weighted soft voting (normalised internally)
-  image_weights:                  # UC-03 image detection (CNN + EffNet + ViT)
+  image_weights:                  # UC-03 image detection (CNN + EffNet + ViT + new ViTs)
     cnn: 1.0
     efficientnet: 1.0
     vit: 1.0
-  video_weights:                  # UC-04 video detection (CNN + EffNet + ViT + LSTM)
+    community: 1.0                # cross-generator detector (CVPR 2025)
+    lnclip: 1.0                   # generalizable CLIP detector (WACV 2026)
+  video_weights:                  # UC-04 video detection (five models; the ViT
+                                  # is image-only - it false-positives on real
+                                  # video frames, see ensemble note)
     cnn: 1.0
     efficientnet: 1.0
-    vit: 1.0
-    lstm: 1.0
+    lstm: 0.7                     # temporal model is the least stable out-of-domain
+    community: 1.0
+    lnclip: 1.0
   threshold: 0.5                  # verdict: FAKE if P_fake >= threshold else REAL
 
 preprocessing:

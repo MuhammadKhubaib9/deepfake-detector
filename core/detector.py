@@ -43,7 +43,8 @@ class Detector:
     @staticmethod
     def _load_bundle(cfg: Config, device_override: str | None = None) -> ModelBundle:
         from concurrent.futures import ThreadPoolExecutor
-        from .models import cnn_efficientnet, cnn_xception, lstm_temporal, vit_vision
+        from .models import (cnn_efficientnet, cnn_xception, lstm_temporal,
+                             vit_community, vit_lnclip, vit_vision)
 
         device = get_device(device_override or cfg.models.device)
         jobs = {
@@ -51,12 +52,16 @@ class Detector:
             "effnet": lambda: cnn_efficientnet.load_effnet(cfg, device=device),
             "vit": lambda: vit_vision.load_vit(cfg, device=device),
             "lstm": lambda: lstm_temporal.load_temporal(cfg, device=device),
+            "community": lambda: vit_community.load_community_vit(cfg, device=device),
+            "lnclip": lambda: vit_lnclip.load_lnclip(cfg, device=device),
         }
         with ThreadPoolExecutor(max_workers=4) as pool:
             results = {name: pool.submit(fn) for name, fn in jobs.items()}
             loaded = {name: fut.result() for name, fut in results.items()}
         return ModelBundle(cnn=loaded["cnn"], effnet=loaded["effnet"],
                            vit=loaded["vit"], lstm=loaded["lstm"],
+                           community=loaded["community"],
+                           lnclip=loaded["lnclip"],
                            device=device)
 
     # ------------------------------------------------------------- helpers
@@ -94,13 +99,16 @@ class Detector:
                 p_cnn = torch.sigmoid(self.bundle.cnn(clip)).item()
                 p_effnet = torch.sigmoid(self.bundle.effnet(clip)).item()
                 p_vit = float(self.bundle.vit.predict_proba(clip).item())
+                p_community = float(self.bundle.community.predict_proba([face]).item())
+                p_lnclip = float(self.bundle.lnclip.predict_proba([face]).item())
 
             saliency = compute_gradcam_heatmap(self.bundle.cnn, clip, self.device)
             heat_p = save_heatmap_overlay(saliency, face, artifacts / "heatmap.png")
             crop_p = self._persist_png(face, artifacts / "face_crop.png")
 
             result = self.ensemble.combine(
-                {"cnn": p_cnn, "efficientnet": p_effnet, "vit": p_vit},
+                {"cnn": p_cnn, "efficientnet": p_effnet, "vit": p_vit,
+                 "community": p_community, "lnclip": p_lnclip},
                 kind="image")
             return self._finalize(result, kind="image", artifacts=artifacts,
                                   original_name=original_name,
@@ -149,7 +157,10 @@ class Detector:
                 p_eff_frames = torch.sigmoid(eff_logits).cpu().numpy().reshape(-1)
                 p_effnet = float(p_eff_frames.mean())
                 p_lstm = float(torch.sigmoid(self.bundle.lstm(clip)).item())
-                p_vit = float(self.bundle.vit.predict_proba(clip).mean().item())
+                # NB: the dima806 ViT-B/16 is intentionally excluded from the
+                # video votes - it false-positives on real HD video frames.
+                p_community = float(self.bundle.community.predict_proba(faces).mean())
+                p_lnclip = float(self.bundle.lnclip.predict_proba(faces).mean())
 
             # Grad-CAM on the most manipulated frame (FR-17).
             # No inference_mode here: Grad-CAM needs autograd.
@@ -161,8 +172,8 @@ class Detector:
             crop_p = self._persist_png(faces[0], artifacts / "face_crop.png")
 
             result = self.ensemble.combine(
-                {"cnn": p_cnn, "efficientnet": p_effnet, "vit": p_vit,
-                 "lstm": p_lstm},
+                {"cnn": p_cnn, "efficientnet": p_effnet,
+                 "lstm": p_lstm, "community": p_community, "lnclip": p_lnclip},
                 kind="video"
             )
             return self._finalize(
@@ -183,11 +194,14 @@ class Detector:
             "p_fake": result["p_fake"],
             "confidence": result["confidence"],
             "threshold": result["threshold"],
+            "disagreement": bool(result.get("disagreement", False)),
             "scores": result["scores"],
             "cnn_score": result["scores"].get("cnn"),
             "effnet_score": result["scores"].get("efficientnet"),
             "vit_score": result["scores"].get("vit"),
             "lstm_score": result["scores"].get("lstm") if kind == "video" else None,
+            "community_score": result["scores"].get("community"),
+            "lnclip_score": result["scores"].get("lnclip"),
             "heatmap_path": heatmap_path,
             "face_crop_path": face_crop_path,
             "faces_analyzed": frames_analyzed,

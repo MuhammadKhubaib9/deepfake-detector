@@ -5,6 +5,9 @@ Weighted probability averaging over the available sub-models:
 
 Verdict (FR-15):  FAKE if P_ensemble >= threshold else REAL
 Confidence (FR-16): P*100 for FAKE, (1-P)*100 for REAL
+
+Model-disagreement guard: removed (see git history). The ensemble always
+votes, and per-model scores are surfaced so the user can judge the spread.
 """
 from __future__ import annotations
 
@@ -49,6 +52,7 @@ class Ensemble:
         p_fake = weighted_average(scores, weights)
         result = self.to_verdict(p_fake)
         result["scores"] = {k: round(v, 4) for k, v in scores.items()}
+        result["disagreement"] = False
         return result
 
     def to_verdict(self, p_fake: float) -> dict:

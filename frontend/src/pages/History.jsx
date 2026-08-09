@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { MODEL_LABELS } from "../modelLabels.js";
 
 const humanSize = null; // sizes are stored relative to session url; not needed here
 const fmtDate = iso => {
@@ -137,7 +138,7 @@ export default function History() {
                 </div>
                 <div className="scores">
                   {Object.entries(detailItem.scores || {}).map(([k, v]) => (
-                    <span className="chip" key={k}>{k}: {(+v).toFixed(2)}</span>
+                    <span className="chip" key={k}>{(MODEL_LABELS[k] || k)}: {((+v) * 100).toFixed(1) + "%"}</span>
                   ))}
                 </div>
                 <button className="btn secondary small" onClick={() => remove(detailItem.id)}>Delete this scan</button>

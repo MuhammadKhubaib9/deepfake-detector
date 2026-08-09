@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import torch
 
-from . import cnn_efficientnet, cnn_xception, lstm_temporal, vit_vision
+from . import cnn_efficientnet, cnn_xception, lstm_temporal, vit_lnclip, vit_community, vit_vision
 
 
 def get_device(value: str = "auto") -> torch.device:
@@ -32,21 +32,30 @@ def load_model(cfg, name: str):
         return vit_vision.load_vit(cfg)
     if name == "lstm":
         return lstm_temporal.load_temporal(cfg)
+    if name == "community":
+        return vit_community.load_community_vit(cfg)
+    if name == "lnclip":
+        return vit_lnclip.load_lnclip(cfg)
     raise ValueError(f"unknown model '{name}'")
 
 
 class ModelBundle:
-    """Container holding the loaded Xception / EfficientNet / ViT / LSTM models + device."""
+    """Container holding the loaded Xception / EfficientNet / ViT / LSTM
+    / CommunityForensics / LNCLIP models + device."""
 
-    def __init__(self, cnn=None, effnet=None, vit=None, lstm=None, device=None):
+    def __init__(self, cnn=None, effnet=None, vit=None, lstm=None, device=None,
+                 community=None, lnclip=None):
         self.cnn = cnn
         self.effnet = effnet
         self.vit = vit
         self.lstm = lstm
+        self.community = community
+        self.lnclip = lnclip
         self.device = device
 
     def eval_all(self):
-        for m in (self.cnn, self.effnet, self.vit, self.lstm):
+        for m in (self.cnn, self.effnet, self.vit, self.lstm,
+                  self.community, self.lnclip):
             if m is not None:
                 m.eval()
 
@@ -60,5 +69,9 @@ class ModelBundle:
             parts.append(f"vit={type(self.vit).__name__}")
         if self.lstm is not None:
             parts.append(f"lstm={type(self.lstm).__name__}")
+        if self.community is not None:
+            parts.append(f"community={type(self.community).__name__}")
+        if self.lnclip is not None:
+            parts.append(f"lnclip={type(self.lnclip).__name__}")
         parts.append(f"device={self.device}")
         return f"ModelBundle({', '.join(parts)})"

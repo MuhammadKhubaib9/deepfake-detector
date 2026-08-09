@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { formatModelScores } from "../modelLabels.js";
 
 const humanSize = b => b >= 1048576 ? (b / 1048576).toFixed(2) + " MB" : (b / 1024).toFixed(1) + " KB";
 const isImage = name => /\.(jpe?g|png)$/i.test(name || "");
@@ -230,7 +231,12 @@ export default function Scanner() {
         <div className="upload-picker">
           <input type="file" id="file-input"
             accept=".jpeg,.jpg,.png,.mp4,.avi" hidden
-            onChange={e => pickFile(e.target.files[0])} />
+            onClick={e => { e.currentTarget.value = ""; }}
+            onChange={e => {
+              const f = e.target.files && e.target.files[0];
+              e.target.value = "";
+              if (f) pickFile(f);
+            }} />
           <div className="pick-row">
             <div className="pick-card" role="button" tabIndex={0}
               onClick={() => pickFile(null, "image")}
@@ -341,6 +347,9 @@ function VerdictView({ verdict, onAgain }) {
             ? "This media shows strong signs of <b>AI manipulation</b>. Please verify before trusting it."
             : "No significant signs of manipulation found. This media appears <b>authentic</b>."
         }}></p>
+        <div className="meta">
+          Model votes: <b>{formatModelScores(verdict.scores)}</b>
+        </div>
         {verdict.kind === "video" && (
           <div className="meta">
             Frames analyzed: <b>{verdict.faces_analyzed}</b>
@@ -350,6 +359,7 @@ function VerdictView({ verdict, onAgain }) {
         )}
         <div className="actions">
           <button className="btn secondary" onClick={onAgain}>Scan another file</button>
+          <button className="btn ghost small" type="button" onClick={() => { onAgain(); document.getElementById("file-input").click(); }}>↻ Upload file</button>
           <span className="meta-text">Analyzed the detected face only · frames: {verdict.faces_analyzed || 1}</span>
         </div>
       </div>
