@@ -64,15 +64,15 @@ class CommunityVitNet(nn.Module):
 
 
 def load_community_vit(cfg: Config, device=None) -> CommunityVitNet:
-    """Instantiate the CommunityForensics ViT on `device`.
+    """Instantiate the ViT model (CommunityForensics ViT-Small) on `device`.
 
-    Local copy (``models.community.checkpoint``) is used when present;
+    Local copy (``models.vit.checkpoint``) is used when present;
     otherwise the owner's Hugging Face repo is used as a download fallback
-    (``models.community.hf_repo`` + ``hf_subfolder``) - same pattern as ViT.
+    (``models.vit.hf_repo`` + ``hf_subfolder``).
     """
     from . import get_device
 
-    mcfg = cfg.models.community
+    mcfg = cfg.models.vit
     local = resolve(mcfg.get("checkpoint"))
     if (local / "config.json").is_file():
         model = CommunityVitNet(str(local))

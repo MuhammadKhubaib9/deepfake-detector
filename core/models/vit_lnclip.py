@@ -57,15 +57,15 @@ class LnClipNet(nn.Module):
 
 
 def load_lnclip(cfg: Config, device=None) -> LnClipNet:
-    """Load the traced LNCLIP model on `device`.
+    """Load the traced ViT-L/14 (LNCLIP) model on `device`.
 
-    Local copy (``models.lnclip.checkpoint``) is used when present;
+    Local copy (``models.vit_l14.checkpoint``) is used when present;
     otherwise the file is pulled from the owner's Hugging Face repo
-    (``models.lnclip.hf_repo`` + ``hf_subfolder``) - same pattern as ViT.
+    (``models.vit_l14.hf_repo`` + ``hf_subfolder``).
     """
     from . import get_device
 
-    mcfg = cfg.models.lnclip
+    mcfg = cfg.models.vit_l14
     local = resolve(mcfg.get("checkpoint"))
     ckpt_path = local
     if not local.is_file():

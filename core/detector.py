@@ -47,21 +47,27 @@ class Detector:
                              vit_community, vit_lnclip, vit_vision)
 
         device = get_device(device_override or cfg.models.device)
-        jobs = {
-            "cnn": lambda: cnn_xception.load_cnn(cfg, device=device),
-            "effnet": lambda: cnn_efficientnet.load_effnet(cfg, device=device),
-            "vit": lambda: vit_vision.load_vit(cfg, device=device),
-            "lstm": lambda: lstm_temporal.load_temporal(cfg, device=device),
-            "community": lambda: vit_community.load_community_vit(cfg, device=device),
-            "lnclip": lambda: vit_lnclip.load_lnclip(cfg, device=device),
+        # Only models with a positive weight in either kind are loaded; the
+        # retired ones (ViT-B/16, ResNet18-BiLSTM) stay on disk untouched.
+        active = {
+            k for k in set(cfg.ensemble.image_weights) | set(cfg.ensemble.video_weights)
+            if cfg.ensemble.image_weights.get(k, 0.0) > 0
+            or cfg.ensemble.video_weights.get(k, 0.0) > 0
         }
-        with ThreadPoolExecutor(max_workers=4) as pool:
+        loaders = {
+            "cnn": lambda: cnn_xception.load_cnn(cfg, device=device),
+            "efficientnet": lambda: cnn_efficientnet.load_effnet(cfg, device=device),
+            "vit": lambda: vit_community.load_community_vit(cfg, device=device),
+            "vit_l14": lambda: vit_lnclip.load_lnclip(cfg, device=device),
+            "lstm": lambda: lstm_temporal.load_temporal(cfg, device=device),
+            "vit_b16": lambda: vit_vision.load_vit(cfg, device=device),
+        }
+        jobs = {name: fn for name, fn in loaders.items() if name in active}
+        with ThreadPoolExecutor(max_workers=min(4, len(jobs))) as pool:
             results = {name: pool.submit(fn) for name, fn in jobs.items()}
             loaded = {name: fut.result() for name, fut in results.items()}
-        return ModelBundle(cnn=loaded["cnn"], effnet=loaded["effnet"],
-                           vit=loaded["vit"], lstm=loaded["lstm"],
-                           community=loaded["community"],
-                           lnclip=loaded["lnclip"],
+        return ModelBundle(cnn=loaded.get("cnn"), effnet=loaded.get("efficientnet"),
+                           vit=loaded.get("vit"), vit_l14=loaded.get("vit_l14"),
                            device=device)
 
     # ------------------------------------------------------------- helpers
@@ -85,7 +91,7 @@ class Detector:
     # --------------------------------------------------------------- image
     def detect_image(self, image_path, artifacts_dir,
                      original_name: str | None = None) -> dict:
-        """UC-03: CNN + ViT inference on one image, with Grad-CAM."""
+        """UC-03: XceptionNet + EfficientNet-B3 + ViT, Grad-CAM."""
         with self.lock:
             artifacts = self._artifacts_dir(artifacts_dir)
             bgr = cv2.imread(str(image_path))
@@ -98,17 +104,15 @@ class Detector:
             with torch.no_grad(), torch.inference_mode():
                 p_cnn = torch.sigmoid(self.bundle.cnn(clip)).item()
                 p_effnet = torch.sigmoid(self.bundle.effnet(clip)).item()
-                p_vit = float(self.bundle.vit.predict_proba(clip).item())
-                p_community = float(self.bundle.community.predict_proba([face]).item())
-                p_lnclip = float(self.bundle.lnclip.predict_proba([face]).item())
+                p_vit = float(self.bundle.vit.predict_proba([face]).item())
 
             saliency = compute_gradcam_heatmap(self.bundle.cnn, clip, self.device)
             heat_p = save_heatmap_overlay(saliency, face, artifacts / "heatmap.png")
             crop_p = self._persist_png(face, artifacts / "face_crop.png")
 
             result = self.ensemble.combine(
-                {"cnn": p_cnn, "efficientnet": p_effnet, "vit": p_vit,
-                 "community": p_community, "lnclip": p_lnclip},
+                {"cnn": p_cnn, "efficientnet": p_effnet,
+                 "vit": p_vit},
                 kind="image")
             return self._finalize(result, kind="image", artifacts=artifacts,
                                   original_name=original_name,
@@ -119,7 +123,8 @@ class Detector:
     # --------------------------------------------------------------- video
     def detect_video(self, video_path, artifacts_dir,
                      original_name: str | None = None) -> dict:
-        """UC-04: frames -> CNN/ViT frame scores + LSTM temporal score."""
+        """UC-04: frames -> EfficientNet-B3 frame scores + ViT + ViT-L/14 votes
+(XceptionNet stays as the Grad-CAM source)."""
         with self.lock:
             artifacts = self._artifacts_dir(artifacts_dir)
             frames = extract_video_frames(
@@ -150,21 +155,19 @@ class Detector:
 
             clip = self._to_clip_tensor(faces)                  # [T,3,224,224]
             with torch.no_grad(), torch.inference_mode():
-                cnn_logits = self.bundle.cnn(clip)              # [T,1]
-                p_cnn_frames = torch.sigmoid(cnn_logits).cpu().numpy().reshape(-1)
-                p_cnn = float(p_cnn_frames.mean())
                 eff_logits = self.bundle.effnet(clip)           # [T,1]
                 p_eff_frames = torch.sigmoid(eff_logits).cpu().numpy().reshape(-1)
                 p_effnet = float(p_eff_frames.mean())
-                p_lstm = float(torch.sigmoid(self.bundle.lstm(clip)).item())
-                # NB: the dima806 ViT-B/16 is intentionally excluded from the
-                # video votes - it false-positives on real HD video frames.
-                p_community = float(self.bundle.community.predict_proba(faces).mean())
-                p_lnclip = float(self.bundle.lnclip.predict_proba(faces).mean())
+                # NB: only EffNet-B3 + ViT + ViT-L/14 vote on video - the
+                # dima806 ViT-B/16 and the BiLSTM were retired, and the
+                # XceptionNet stays as the Grad-CAM source only
+                # (config ensemble.video_weights).
+                p_vit = float(self.bundle.vit.predict_proba(faces).mean())
+                p_vit_l14 = float(self.bundle.vit_l14.predict_proba(faces).mean())
 
             # Grad-CAM on the most manipulated frame (FR-17).
             # No inference_mode here: Grad-CAM needs autograd.
-            worst = int(np.argmax(p_cnn_frames))
+            worst = int(np.argmax(p_eff_frames))
             t_worst = self._to_clip_tensor([faces[worst]])  # [1,3,224,224]
             saliency = compute_gradcam_heatmap(self.bundle.cnn, t_worst, self.device)
             heat_p = save_heatmap_overlay(saliency, faces[worst].astype(np.uint8),
@@ -172,8 +175,8 @@ class Detector:
             crop_p = self._persist_png(faces[0], artifacts / "face_crop.png")
 
             result = self.ensemble.combine(
-                {"cnn": p_cnn, "efficientnet": p_effnet,
-                 "lstm": p_lstm, "community": p_community, "lnclip": p_lnclip},
+                {"efficientnet": p_effnet,
+                 "vit": p_vit, "vit_l14": p_vit_l14},
                 kind="video"
             )
             return self._finalize(
@@ -199,9 +202,7 @@ class Detector:
             "cnn_score": result["scores"].get("cnn"),
             "effnet_score": result["scores"].get("efficientnet"),
             "vit_score": result["scores"].get("vit"),
-            "lstm_score": result["scores"].get("lstm") if kind == "video" else None,
-            "community_score": result["scores"].get("community"),
-            "lnclip_score": result["scores"].get("lnclip"),
+            "vit_l14_score": result["scores"].get("vit_l14"),
             "heatmap_path": heatmap_path,
             "face_crop_path": face_crop_path,
             "faces_analyzed": frames_analyzed,

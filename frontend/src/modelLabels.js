@@ -1,13 +1,11 @@
 // Friendly display names for the per-model scores shown in verdicts.
-// Backend keys stay stable (cnn, efficientnet, vit, lstm, community, lnclip);
+// Backend keys stay stable (cnn, efficientnet, vit, vit_l14);
 // only the presentation name changes here.
 export const MODEL_LABELS = {
   cnn: "XceptionNet",
   efficientnet: "EfficientNet-B3",
-  vit: "ViT-B/16 (image)",
-  lstm: "ResNet18-BiLSTM",
-  community: "CommunityForensics ViT",
-  lnclip: "LNCLIP (CLIP ViT-L/14)",
+  vit: "ViT model",
+  vit_l14: "ViT-L/14",
 };
 
 export function formatModelScores(scores = {}) {

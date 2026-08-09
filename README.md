@@ -1,17 +1,19 @@
 # DeepFake Detection System
 
 A web application that detects deepfake **images** and **videos** using an
-ensemble of six deep-learning models:
+ensemble of four deep-learning models (two retired wrappers are kept on
+disk but never loaded):
 
-- **XceptionNet** (CNN) – analyses facial texture/artifacts
+- **XceptionNet** (CNN) – analyses facial texture/artifacts (images + Grad-CAM)
 - **EfficientNet-B3** (CNN) – second spatial backbone, the strongest single
-  model in the FF++ C23 study
-- **ViT-B/16** (Vision Transformer) – per-frame transformer opinion
-- **ResNet18-BiLSTM** (temporal) – analyzes motion over a clip of frames (videos only)
-- **CommunityForensics-ViT** (CVPR 2025) – trained on 2.7M samples from 4,803
-  generators; detects unseen forgery methods
-- **LNCLIP-DF** (WACV 2026) – CLIP ViT-L/14 with LN-tuning, generalizes
-  cross-dataset (FF++ -> Celeb-DF-v2 / DFDC)
+  model in the FF++ C23 study (images + videos)
+- **ViT** (CommunityForensics ViT-Small, CVPR 2025) – trained on 2.7M samples
+  from 4,803 generators; detects unseen forgery methods (images + videos)
+- **ViT-L/14** (LNCLIP-DF, WACV 2026) – CLIP ViT-L/14 with LN-tuning,
+  generalizes cross-dataset (FF++ -> Celeb-DF-v2 / DFDC) (videos only)
+
+Retired (files kept, never loaded/voted): dima806 **ViT-B/16** and the
+**ResNet18-BiLSTM** temporal model.
 
 Results come with a per-model probability score, a combined verdict
 (REAL / FAKE), a confidence %, and a **Grad-CAM heatmap** that shows *which
@@ -96,9 +98,9 @@ deepfake-models/
 ├── xception_weights.pt          -> models/xception_weights.pt
 ├── cnn_lstm_weights.pth         -> models/cnn_lstm_weights.pth
 ├── efficientnet_weights.pt      -> models/efficientnet_weights.pt
-├── ViT/                         -> models/ViT/                    (ViT-B/16)
-├── community_forensics/         -> models/community_forensics/    (CVPR 2025)
-└── lnclip/model.torchscript     -> models/lnclip/model.torchscript (WACV 2026)
+├── ViT/                         -> models/ViT/                    (ViT model)
+├── vit_l14/model.torchscript    -> models/vit_l14/model.torchscript (ViT-L/14)
+└── ViT-B16-retired/             -> models/ViT-B16-retired/       (retired dima806)
 ```
 
 > At inference time nothing touches the network (NFR-07): each loader uses
@@ -145,10 +147,9 @@ npm run dev        # dev server on :5173, proxies /api to Flask :5000
 3. The result shows:
    - The verdict badge: **REAL** or **FAKE**
    - The **probability** of manipulation and the **confidence** %
-   - Per-model scores (XceptionNet, EfficientNet-B3, CommunityForensics,
-     LNCLIP, and – for video – the BiLSTM; the ViT-B/16 votes on images
-     only — it false-positives on real video frames, so it is excluded
-     from video votes)
+   - Per-model scores (images: XceptionNet, EfficientNet-B3, ViT; videos:
+     EfficientNet-B3, ViT, ViT-L/14. The retired dima806 ViT-B/16 and the
+     BiLSTM never vote)
    - A **Grad-CAM heatmap** highlighting manipulated regions
    - The extracted face crop used for analysis
 

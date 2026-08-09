@@ -32,12 +32,20 @@ models:
     checkpoint: ./models/efficientnet_weights.pt
     backbone_prefix: "backbone."  # prefix inside the released checkpoint
 
-  vit:                            # FR-12: Vision Transformer (transformers backend)
-    name: "ViT-B/16"
-    checkpoint: ./models/ViT  # self-hosted copy, primary source (no network)
-    hf_repo: Khubaib7/deepfake-models  # fallback: your account if the local folder is absent
-    hf_subfolder: ViT                   # ViT files live in the 'ViT/' subfolder of that repo
-    labels: [Real, Fake]          # id2label of the HF checkpoint used
+  vit:                            # FR-12: CommunityForensics ViT-Small (CVPR 2025)
+    name: "ViT model"
+    type: vit_small_384           # 2.7M samples / 4,803 generators, sigmoid logit
+    checkpoint: ./models/ViT      # local clone (transformers format)
+    hf_repo: Khubaib7/deepfake-models  # fallback: your account if local is absent
+    hf_subfolder: ViT
+
+  vit_b16:                        # RETIRED: dima806 ViT-B/16 (never loaded/voted)
+    name: "ViT-B/16 (retired)"
+    checkpoint: ./models/ViT-B16-retired  # kept on disk, HF copy removed after
+                                          # the HF-side rename of the two actives
+    hf_repo: Khubaib7/deepfake-models
+    hf_subfolder: ViT-B16-retired
+    labels: [Real, Fake]          # id2label of the HF checkpoint kept locally
 
   lstm:                           # FR-13: ResNet-18 + 2-layer BiLSTM
     name: "ResNet18-BiLSTM"
@@ -48,36 +56,31 @@ models:
     dropout: 0.3
     sequence_frames: 24           # TBD-03 resolved: 24-frame clip, as trained
 
-  community:                      # CommunityForensics ViT-Small (CVPR 2025)
-    name: "CommunityForensics-ViT"
-    type: vit_small_384           # 2.7M samples / 4,803 generators, sigmoid logit
-    checkpoint: ./models/community_forensics   # local clone (transformers format)
-    hf_repo: Khubaib7/deepfake-models  # fallback: your account if local is absent
-    hf_subfolder: community_forensics
-
-  lnclip:                         # LNCLIP-DF: CLIP ViT-L/14, LN-tuned (WACV 2026)
-    name: "LNCLIP-CLIP-ViTL14"
+  vit_l14:                        # LNCLIP-DF: CLIP ViT-L/14, LN-tuned (WACV 2026)
+    name: "ViT-L/14"
     type: torchscript
-    checkpoint: ./models/lnclip/model.torchscript
+    checkpoint: ./models/vit_l14/model.torchscript
     hf_repo: Khubaib7/deepfake-models  # fallback: your account if local is absent
-    hf_subfolder: lnclip
+    hf_subfolder: vit_l14
     file: model.torchscript
 
 ensemble:                         # FR-14: weighted soft voting (normalised internally)
-  image_weights:                  # UC-03 image detection (CNN + EffNet + ViT + new ViTs)
-    cnn: 1.0
+  # Lineups were trimmed by the owner (files kept on disk / HF, models simply
+  # not voted): images = XceptionNet + EfficientNet-B3 + ViT;
+  # videos = EfficientNet-B3 + ViT + ViT-L/14. The dima806 ViT-B/16 and the
+  # ResNet18-BiLSTM are retired - a weight of 0.0 means the model is not
+  # loaded and never runs.
+  image_weights:                  # UC-03 image detection (3 models)
+    cnn: 1.0                      # XceptionNet
+    efficientnet: 1.0             # EfficientNet-B3
+    vit: 1.0                      # CommunityForensics ViT (CVPR 2025)
+    vit_l14: 0.0                  # not voted on images (kept for video only)
+  video_weights:                  # UC-04 video detection (3 models)
+    cnn: 0.0                      # retired from video votes
     efficientnet: 1.0
+    lstm: 0.0                     # retired (least stable out-of-domain)
     vit: 1.0
-    community: 1.0                # cross-generator detector (CVPR 2025)
-    lnclip: 1.0                   # generalizable CLIP detector (WACV 2026)
-  video_weights:                  # UC-04 video detection (five models; the ViT
-                                  # is image-only - it false-positives on real
-                                  # video frames, see ensemble note)
-    cnn: 1.0
-    efficientnet: 1.0
-    lstm: 0.7                     # temporal model is the least stable out-of-domain
-    community: 1.0
-    lnclip: 1.0
+    vit_l14: 1.0                  # generalizable CLIP detector (WACV 2026)
   threshold: 0.5                  # verdict: FAKE if P_fake >= threshold else REAL
 
 preprocessing:

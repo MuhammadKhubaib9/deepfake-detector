@@ -18,3 +18,6 @@ uploads/
 # Model weights: never in git - the loaders fetch them from the project's
 # Hugging Face repo (Khubaib7/deepfake-models) when models/ is missing.
 # models/
+
+# Test benchmark media + artifacts (human-face eval set)
+testing/

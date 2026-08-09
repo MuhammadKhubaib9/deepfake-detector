@@ -122,7 +122,7 @@ function Landing() {
             <div className="hero-left">
               <span className="eyebrow"><i className="dot"></i> AI-powered deepfake detection</span>
               <h1 className="hero-title">
-                Is this media <span className="grad-accent">real</span> or
+                Is this media <span className="grad-accent">real</span> or{" "}
                 <span className="grad-danger">fake?</span>
               </h1>
               <p className="hero-sub">
@@ -164,7 +164,7 @@ function Landing() {
               <span className="engine-ico">🧠</span>
               <div>
                 <h4>Ensemble verifier</h4>
-                <p>CNN + EfficientNet + ViT + BiLSTM weighted soft-voting turns every signal into one defensible verdict.</p>
+                <p>XceptionNet + EfficientNet-B3 + ViT + ViT-L/14 weighted soft-voting turns every signal into one defensible verdict.</p>
               </div>
             </div>
           </div>
@@ -208,7 +208,7 @@ function Landing() {
           </div>
           <div className="feature-grid">
             <div className="card feature reveal"><span className="f-ico">🎯</span><h4>One clear verdict</h4><p>REAL or FAKE with confidence — no confusing model percentages.</p></div>
-            <div className="card feature reveal"><span className="f-ico">🧬</span><h4>Four-model ensemble</h4><p>CNN + EfficientNet + ViT + BiLSTM catch spatial, global and temporal cues.</p></div>
+            <div className="card feature reveal"><span className="f-ico">🧬</span><h4>Four-model ensemble</h4><p>XceptionNet + EfficientNet-B3 + ViT + ViT-L/14 catch spatial, global and temporal cues.</p></div>
             <div className="card feature reveal"><span className="f-ico">🔍</span><h4>Evidence it explains itself</h4><p>Grad-CAM heatmaps show exactly which regions look manipulated.</p></div>
             <div className="card feature reveal"><span className="f-ico">🔒</span><h4>100% private</h4><p>Runs on your device. Files auto-delete after one hour.</p></div>
             <div className="card feature reveal"><span className="f-ico">🎬</span><h4>Images &amp; video</h4><p>Face-first analysis on photos and clips, with temporal checks.</p></div>
@@ -244,7 +244,8 @@ function Landing() {
             <p className="about-text">
               The <b>Deepfake Detection System</b> is a final-year project that ships a complete
               web application — file upload &amp; validation, face detection and alignment
-              (MTCNN), a multi-model inference core (CNN + EfficientNet + ViT + BiLSTM ensemble)
+              (MTCNN), a multi-model inference core (XceptionNet + EfficientNet-B3 +
+              ViT + ViT-L/14 ensemble)
               and an explainable Grad-CAM verdict. All of it runs entirely on localhost in a clean
               three-tier architecture (Flask API · React UI · preprocessing pipeline · inference engine).
             </p>

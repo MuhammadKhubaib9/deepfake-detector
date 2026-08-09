@@ -7,9 +7,9 @@ const isSupported = name => /\.(jpe?g|png|mp4|avi)$/i.test(name || "");
 const TAB_LABELS = { source: "Source", face: "Detected face", heatmap: "Heatmap", verdict: "Verdict" };
 
 const STEPS = [
-  ["Detecting faces…", "MTCNN face localization", "face", "face"],
-  ["Running deep learning models…", "CNN + EfficientNet + ViT + BiLSTM ensemble", "heatmap", "heatmap"],
-  ["Generating Grad-CAM proof…", "Explainability heatmap", "verdict", "verdict"]
+  ["Detecting faces…", "face"],
+  ["Running models…", "heatmap"],
+  ["Generating Grad-CAM proof…", "verdict"]
 ];
 
 export default function Scanner() {
@@ -132,14 +132,14 @@ export default function Scanner() {
     setScanning(true);
     setError("");
     setScanState("Scanning…");
-    setLoader({ msg: "Analyzing media…", step: "Uploading" });
+    setLoader({ msg: "Analyzing media…" });
     setActiveTab("source");
     let i = 0;
     const timer = setInterval(() => {
       if (i >= STEPS.length) return;
       const s = STEPS[i];
-      setLoader({ msg: s[0], step: s[1] });
-      setActiveTab(s[2]);
+      setLoader({ msg: s[0] });
+      setActiveTab(s[1]);
       i += 1;
     }, 2600);
     try {
@@ -326,7 +326,6 @@ export default function Scanner() {
         <div className="loader">
           <div className="scan-frame"><span className="scanline"></span></div>
           <p>{loader.msg}</p>
-          <p className="loader-step">{loader.step}</p>
         </div>
       )}
     </div>

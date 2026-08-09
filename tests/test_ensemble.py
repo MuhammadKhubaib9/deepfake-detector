@@ -1,4 +1,11 @@
-"""Ensemble weighted-soft-voting tests (FR-14..FR-16)."""
+"""Ensemble weighted-soft-voting tests (FR-14..FR-16).
+
+Active lineups (config ensemble.image_weights / video_weights):
+  images:  cnn (XceptionNet), efficientnet, vit
+  videos:  efficientnet, vit, vit_l14
+Retired models (dima806 ViT-B/16, ResNet18-BiLSTM) have weight 0.0 and never
+vote.
+"""
 from __future__ import annotations
 
 import sys
@@ -17,55 +24,53 @@ def run(scores, kind):
     return ENS.combine(dict(scores), kind)
 
 
-def test_unanimous_vote_stays_real():
-    r = run({"cnn": 0.38, "efficientnet": 0.26, "vit": 0.38, "lstm": 0.02}, "video")
-    assert r["verdict"] == "REAL"
-    assert r["disagreement"] is False
+def test_image_votes_use_only_cnn_effnet_vit():
+    base = run({"cnn": 0.1, "efficientnet": 0.1, "vit": 0.1}, "image")
+    assert base["verdict"] == "REAL"
+    # Retired/other models must not move the image vote at all.
+    padded = run({"cnn": 0.1, "efficientnet": 0.1, "vit": 0.1,
+                  "vit_l14": 0.99, "lstm": 0.99, "vit_b16": 0.99}, "image")
+    assert abs(base["p_fake"] - padded["p_fake"]) < 1e-9
 
 
-def test_mixed_vote_averages_to_real():
-    # Despite a strong ViT spike, the weighted average (ViT dropped from video)
-    # is far below the threshold.
-    r = run({"cnn": 0.06, "efficientnet": 0.04, "vit": 0.99, "lstm": 0.03}, "video")
-    assert r["verdict"] == "REAL"
-    assert r["disagreement"] is False
+def test_video_votes_use_only_effnet_vit_vitl14():
+    base = run({"efficientnet": 0.9, "vit": 0.9, "vit_l14": 0.9}, "video")
+    assert base["verdict"] == "FAKE"
+    padded = run({"efficientnet": 0.9, "vit": 0.9, "vit_l14": 0.9,
+                  "cnn": 0.01, "lstm": 0.99, "vit_b16": 0.99}, "video")
+    assert abs(base["p_fake"] - padded["p_fake"]) < 1e-9
 
 
-def test_vit_is_excluded_from_video_votes():
-    # Video weights no longer include 'vit' -> a 0.99 ViT vote must NOT move
-    # the weighted average (weight 0 drops it from both numerator & denominator).
-    without_vit = run({"cnn": 0.06, "efficientnet": 0.04, "lstm": 0.03}, "video")
-    with_vit = run({"cnn": 0.06, "efficientnet": 0.04, "lstm": 0.03, "vit": 0.99},
-                   "video")
-    assert abs(without_vit["p_fake"] - with_vit["p_fake"]) < 1e-9
-    assert with_vit["verdict"] == "REAL"
-
-
-def test_vit_keeps_voting_on_images():
-    # Image weights still include the ViT -> its vote moves the image verdict.
-    r = run({"cnn": 0.45, "efficientnet": 0.45, "vit": 0.99}, "image")
-    assert r["verdict"] == "FAKE"
-    r2 = run({"cnn": 0.45, "efficientnet": 0.45}, "image")
-    assert r2["verdict"] == "REAL"
+def test_single_strong_fake_vote_is_diluted():
+    # Image lineup: one 0.99 vote next to two 0.05s -> weighted mean '0.36' -> REAL.
+    r = run({"cnn": 0.05, "efficientnet": 0.05, "vit": 0.99}, "image")
+    assert abs(r["p_fake"] - 0.3633) < 1e-3
 
 
 def test_straddle_stays_real():
-    # A single marginal 0.501 vote next to 0.05 votes -> REAL (no INCONCLUSIVE).
+    # A single marginal 0.501 vote next to ~0.05 votes -> REAL, no INCONCLUSIVE.
     r = run({"cnn": 0.501, "efficientnet": 0.2036, "vit": 0.0531}, "image")
     assert r["verdict"] == "REAL"
     assert r["disagreement"] is False
 
 
-def test_agreement_fake():
+def test_agreement_fake_image():
     r = run({"cnn": 0.9, "efficientnet": 0.87, "vit": 0.92}, "image")
     assert r["verdict"] == "FAKE"
     assert r["disagreement"] is False
 
 
-def test_weights_are_respected():
-    # Equal p but video weight on lstm is 0.7 -> shifts the average slightly.
-    r = run({"cnn": 0.8, "efficientnet": 0.7, "vit": 0.7, "lstm": 0.1}, "video")
-    assert 0.5 < r["p_fake"] < 0.8
+def test_agreement_fake_video():
+    r = run({"efficientnet": 0.8, "vit": 0.7, "vit_l14": 0.95}, "video")
+    assert r["verdict"] == "FAKE"
+    assert r["disagreement"] is False
+
+
+def test_all_video_weights_are_equal():
+    # Video lineup has three weight-1.0 members -> p_fake is a plain mean.
+    r = run({"efficientnet": 0.2, "vit": 0.7, "vit_l14": 0.0}, "video")
+    assert abs(r["p_fake"] - 0.3) < 1e-9
+    assert r["verdict"] == "REAL"
 
 
 if __name__ == "__main__":

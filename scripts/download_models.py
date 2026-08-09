@@ -2,14 +2,15 @@
 
 Source repo:  https://huggingface.co/Khubaib7/deepfake-models
 
-Layout inside the repo (paths relative to the repo root):
+Layout inside the repo (paths relative to the repo root, after the owner's
+HF-side rename of the two active ViT models):
 
   xception_weights.pt                 FF++ C23 XceptionNet
-  cnn_lstm_weights.pth                FF++ C23 ResNet18-BiLSTM
+  cnn_lstm_weights.pth                FF++ C23 ResNet18-BiLSTM (retired)
   efficientnet_weights.pt             FF++ C23 EfficientNet-B3
-  ViT/                                ViT-B/16 (dima806 deepfake_vs_real_image_detection)
-  community_forensics/                CommunityForensics ViT-Small (CVPR 2025)
-  lnclip/model.torchscript            LNCLIP-DF traced CLIP ViT-L/14 (WACV 2026)
+  ViT/                                ViT model (CommunityForensics ViT-Small, CVPR 2025)
+  vit_l14/model.torchscript           ViT-L/14 (LNCLIP-DF traced CLIP ViT-L/14, WACV 2026)
+  ViT-B16-retired/                    retired dima806 ViT-B/16 (optional local copy)
 
 Run:  python scripts/download_models.py
 """
@@ -33,9 +34,9 @@ FILES = {
 
 # Folder checkpoints downloaded whole from a repo subfolder into models/<name>.
 FOLDERS = {
-    "ViT":                  "models/ViT",                  # dima806 ViT-B/16
-    "community_forensics":  "models/community_forensics",  # CVPR 2025 ViT-S
-    "lnclip":               "models/lnclip",               # LNCLIP torchscript
+    "ViT":                  "models/ViT",                  # active ViT (CVPR 2025)
+    "vit_l14":              "models/vit_l14",              # ViT-L/14 torchscript
+    "ViT-B16-retired":      "models/ViT-B16-retired",      # retired dima806 ViT-B/16
 }
 
 
@@ -68,7 +69,10 @@ def _download_folder(folder: str, dst_path: Path) -> None:
                           local_dir=str(tmp))
         src_dir = tmp / folder
         if not src_dir.is_dir():
-            raise RuntimeError(f"subfolder not found in repo: {folder}")
+            raise RuntimeError(
+                f"subfolder not found in repo: {folder}. Please re-upload the "
+                f"renamed checkpoint to {REPO}/{folder} first."
+            )
         dst_path.parent.mkdir(parents=True, exist_ok=True)
         if dst_path.exists():
             shutil.rmtree(dst_path, ignore_errors=True)
@@ -89,10 +93,10 @@ def main() -> int:
         print(f"[done]    {dst}")
     for folder, dst in FOLDERS.items():
         _download_folder(folder, ROOT / dst)
-    if (ROOT / "models" / "community_forensics" / "config.json").is_file():
-        print("CommunityForensics ViT ready.")
-    if (ROOT / "models" / "lnclip" / "model.torchscript").is_file():
-        print("LNCLIP torchscript ready.")
+    if (ROOT / "models" / "ViT" / "config.json").is_file():
+        print("ViT ready.")
+    if (ROOT / "models" / "vit_l14" / "model.torchscript").is_file():
+        print("ViT-L/14 torchscript ready.")
     return 0
 
 

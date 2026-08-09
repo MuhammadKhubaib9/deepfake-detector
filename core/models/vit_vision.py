@@ -49,7 +49,7 @@ def load_vit(cfg: Config, device=None) -> nn.Module:
     """Build the ViT model from config.yaml (local folder -> HF fallback)."""
     from . import get_device
 
-    mcfg = cfg.models.vit
+    mcfg = cfg.models.vit_b16
     local: Path | None = None
     checkpoint = mcfg.get("checkpoint")
     if checkpoint:

@@ -23,39 +23,32 @@ def get_device(value: str = "auto") -> torch.device:
 
 
 def load_model(cfg, name: str):
-    """Load a single model by short name: 'cnn' | 'effnet' | 'vit' | 'lstm'."""
+    """Load a single model by short name: 'cnn' | 'effnet' | 'vit' | 'vit_l14'."""
     if name == "cnn":
         return cnn_xception.load_cnn(cfg)
     if name == "effnet":
         return cnn_efficientnet.load_effnet(cfg)
     if name == "vit":
-        return vit_vision.load_vit(cfg)
-    if name == "lstm":
-        return lstm_temporal.load_temporal(cfg)
-    if name == "community":
         return vit_community.load_community_vit(cfg)
-    if name == "lnclip":
+    if name == "vit_l14":
         return vit_lnclip.load_lnclip(cfg)
     raise ValueError(f"unknown model '{name}'")
 
 
 class ModelBundle:
-    """Container holding the loaded Xception / EfficientNet / ViT / LSTM
-    / CommunityForensics / LNCLIP models + device."""
+    """Container holding the loaded Xception / EfficientNet / ViT / ViT-L/14
+    models + device. Retired wrappers (dima806 ViT-B/16, BiLSTM) are simply
+    never constructed."""
 
-    def __init__(self, cnn=None, effnet=None, vit=None, lstm=None, device=None,
-                 community=None, lnclip=None):
+    def __init__(self, cnn=None, effnet=None, vit=None, vit_l14=None, device=None):
         self.cnn = cnn
         self.effnet = effnet
         self.vit = vit
-        self.lstm = lstm
-        self.community = community
-        self.lnclip = lnclip
+        self.vit_l14 = vit_l14
         self.device = device
 
     def eval_all(self):
-        for m in (self.cnn, self.effnet, self.vit, self.lstm,
-                  self.community, self.lnclip):
+        for m in (self.cnn, self.effnet, self.vit, self.vit_l14):
             if m is not None:
                 m.eval()
 
@@ -67,11 +60,7 @@ class ModelBundle:
             parts.append(f"effnet={type(self.effnet).__name__}")
         if self.vit is not None:
             parts.append(f"vit={type(self.vit).__name__}")
-        if self.lstm is not None:
-            parts.append(f"lstm={type(self.lstm).__name__}")
-        if self.community is not None:
-            parts.append(f"community={type(self.community).__name__}")
-        if self.lnclip is not None:
-            parts.append(f"lnclip={type(self.lnclip).__name__}")
+        if self.vit_l14 is not None:
+            parts.append(f"vit_l14={type(self.vit_l14).__name__}")
         parts.append(f"device={self.device}")
         return f"ModelBundle({', '.join(parts)})"
