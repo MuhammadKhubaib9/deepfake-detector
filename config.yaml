@@ -10,7 +10,7 @@ server:
 
 uploads:
   upload_dir: uploads             # Tier-3 temporary storage
-  session_expiry_seconds: 3600    # FR-20: temp files auto-deleted after 1 hour
+  session_expiry_seconds: 360000    # FR-20: temp files auto-deleted after 1 hour
   max_image_size_mb: 10           # FR-04
   max_video_size_mb: 100          # FR-04
   allowed_image_types: [image/jpeg, image/png]       # FR-01
@@ -22,24 +22,24 @@ models:
 
   cnn:                            # FR-11: XceptionNet CNN backbone
     name: XceptionNet             # FR-11 canonical CNN backbone
-    type: xception                # timm 'legacy_xception' (FF++ C23 fine-tuned)
+    type: xception                # timm 'legacy_xception' 
     checkpoint: ./models/xception_weights.pt
     backbone_prefix: "backbone."  # prefix inside the released checkpoint
 
   efficientnet:                   # EfficientNet-B3 (2nd spatial CNN, FR-11)
     name: "EfficientNet-B3"
-    type: efficientnet_b3         # timm 'efficientnet_b3' (FF++ C23 fine-tuned)
+    type: efficientnet_b3         # timm 'efficientnet_b3' 
     checkpoint: ./models/efficientnet_weights.pt
     backbone_prefix: "backbone."  # prefix inside the released checkpoint
 
-  vit:                            # FR-12: CommunityForensics ViT-Small (CVPR 2025)
+  vit:                            # FR-12:  ViT-Small (CVPR 2025)
     name: "ViT model"
     type: vit_small_384           # 2.7M samples / 4,803 generators, sigmoid logit
     checkpoint: ./models/ViT      # local clone (transformers format)
     hf_repo: Khubaib7/deepfake-models  # fallback: your account if local is absent
     hf_subfolder: ViT
 
-  vit_b16:                        # RETIRED: dima806 ViT-B/16 (never loaded/voted)
+  vit_b16:                        # RETIRED:  ViT-B/16 (never loaded/voted)
     name: "ViT-B/16 (retired)"
     checkpoint: ./models/ViT-B16-retired  # kept on disk, HF copy removed after
                                           # the HF-side rename of the two actives
@@ -56,7 +56,7 @@ models:
     dropout: 0.3
     sequence_frames: 24           # TBD-03 resolved: 24-frame clip, as trained
 
-  vit_l14:                        # LNCLIP-DF: CLIP ViT-L/14, LN-tuned (WACV 2026)
+  vit_l14:                        #  CLIP ViT-L/14, LN-tuned (WACV 2026)
     name: "ViT-L/14"
     type: torchscript
     checkpoint: ./models/vit_l14/model.torchscript
