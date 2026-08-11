@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { formatModelScores } from "../modelLabels.js";
 
 const humanSize = b => b >= 1048576 ? (b / 1048576).toFixed(2) + " MB" : (b / 1024).toFixed(1) + " KB";
 const isImage = name => /\.(jpe?g|png)$/i.test(name || "");
@@ -346,9 +345,6 @@ function VerdictView({ verdict, onAgain }) {
             ? "This media shows strong signs of <b>AI manipulation</b>. Please verify before trusting it."
             : "No significant signs of manipulation found. This media appears <b>authentic</b>."
         }}></p>
-        <div className="meta">
-          Model votes: <b>{formatModelScores(verdict.scores)}</b>
-        </div>
         {verdict.kind === "video" && (
           <div className="meta">
             Frames analyzed: <b>{verdict.faces_analyzed}</b>

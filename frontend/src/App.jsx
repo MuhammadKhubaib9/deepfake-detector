@@ -136,8 +136,8 @@ function Landing() {
               </div>
               <div className="hero-stats">
                 <div className="hs"><CountUp to={98} /><span>% test accuracy</span></div>
-                <div className="hs"><CountUp to={99.9} suffix="0" /><span>ROC-AUC</span></div>
-                <div className="hs"><CountUp to={24} /><span>frames per video</span></div>
+                <div className="hs"><CountUp to={99} /><span>ROC-AUC</span></div>
+                <div className="hs"><CountUp to={40} /><span>frames per video</span></div>
                 <div className="hs"><CountUp to={100} /><span>% local &amp; private</span></div>
               </div>
             </div>
