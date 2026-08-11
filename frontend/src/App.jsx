@@ -100,7 +100,7 @@ function Landing() {
         <div className="brand">
           <span className="logo">🕵️</span>
           <div>
-            <h1>fAKE <span>FILTER</span></h1>
+            <h1>FAKE <span>FILTER</span></h1>
             <p className="tagline">Deepfake scanning, on your device</p>
           </div>
         </div>

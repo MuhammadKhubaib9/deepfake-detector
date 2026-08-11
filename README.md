@@ -96,11 +96,9 @@ Repo layout used by the script (mirror these folders to
 ```
 deepfake-models/
 ├── xception_weights.pt          -> models/xception_weights.pt
-├── cnn_lstm_weights.pth         -> models/cnn_lstm_weights.pth
 ├── efficientnet_weights.pt      -> models/efficientnet_weights.pt
 ├── ViT/                         -> models/ViT/                    (ViT model)
 ├── vit_l14/model.torchscript    -> models/vit_l14/model.torchscript (ViT-L/14)
-└── ViT-B16-retired/             -> models/ViT-B16-retired/       (retired dima806)
 ```
 
 > At inference time nothing touches the network (NFR-07): each loader uses
